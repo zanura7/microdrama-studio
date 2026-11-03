@@ -3,11 +3,13 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import IdeaForm from "../components/IdeaForm";
+import BatchQueuePanel from "../components/BatchQueuePanel";
 import SettingsModal from "../components/SettingsModal";
-import { Film, Zap, GitBranch, Layers, Settings, ExternalLink, ShieldCheck, CheckCircle2, Sun, Moon } from "lucide-react";
+import { Film, Zap, GitBranch, Layers, Settings, ExternalLink, ShieldCheck, CheckCircle2, Sun, Moon, Sparkles } from "lucide-react";
 
 export default function HomePage() {
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState("single"); // 'single' | 'batch'
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -178,6 +180,35 @@ export default function HomePage() {
           </div>
         </div>
 
+        {/* Tab Switcher: Studio Satuan vs Pabrik Overnight */}
+        <div className="flex items-center gap-2 mb-6 p-1.5 rounded-xl bg-[#f2ece1] dark:bg-[#27231e] w-fit border border-[#ede7dc] dark:border-[#38322b]">
+          <button
+            type="button"
+            onClick={() => setActiveTab("single")}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+              activeTab === "single"
+                ? "bg-white dark:bg-[#1a1714] text-[#c25e40] shadow-sm"
+                : "text-[#7f7466] dark:text-[#a09587] hover:text-[#2d2621] dark:hover:text-[#f2ece3]"
+            }`}
+          >
+            <Film size={14} />
+            <span>Studio Satuan (Single Episode)</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("batch")}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+              activeTab === "batch"
+                ? "bg-white dark:bg-[#1a1714] text-[#c25e40] shadow-sm"
+                : "text-[#7f7466] dark:text-[#a09587] hover:text-[#2d2621] dark:hover:text-[#f2ece3]"
+            }`}
+          >
+            <Moon size={14} />
+            <span>Pabrik Overnight (Ekspor Massal 5–10 Episode)</span>
+            <span className="paper-badge badge-terracotta text-[10px]">Flow Studio</span>
+          </button>
+        </div>
+
         {/* Error notification if any */}
         {error && (
           <div className="mb-6 p-4 rounded-xl text-xs font-medium bg-[#fcf0ec] border border-[#f5d7ce] text-[#9e4328] flex items-center gap-2">
@@ -186,8 +217,12 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* The Clean Form */}
-        <IdeaForm onSubmit={handleSubmit} isSubmitting={isSubmitting} />
+        {/* Content: Single Form or Overnight Batch Queue */}
+        {activeTab === "single" ? (
+          <IdeaForm onSubmit={handleSubmit} isSubmitting={isSubmitting} />
+        ) : (
+          <BatchQueuePanel />
+        )}
       </main>
 
       {/* Clean Desk Footer */}

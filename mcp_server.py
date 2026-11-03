@@ -171,6 +171,44 @@ def publish_drama_to_social(
 
 
 @mcp.tool()
+def get_batch_queue_status() -> Dict[str, Any]:
+    """
+    Cek status antrean produksi massal (Overnight Batch Queue).
+    Mengembalikan total antrean, jumlah episode selesai, yang sedang diproses, dan status worker.
+    """
+    return _http_get("/api/batch/status")
+
+
+@mcp.tool()
+def add_batch_queue(
+    episodes: List[Dict[str, Any]],
+    skill_id: str = "",
+    style: str = "Cinematic",
+    use_storyboard_sheets: bool = True,
+) -> Dict[str, Any]:
+    """
+    Tambahkan banyak episode sekaligus ke antrean Overnight Batch untuk ekspor massal semalaman.
+
+    Parameters:
+      episodes: List naskah/ide episode. Contoh: [{"title": "Episode 1", "idea": "Menantu ditindas..."}, {"title": "Episode 2", "idea": "Identitas terbongkar..."}]
+      skill_id: ID formula naskah ('revenge_ceo', 'ugc_affiliate', 'urban_horror', 'office_romcom').
+      style: Gaya visual ('Cinematic', 'Realistic', 'Anime', dll).
+      use_storyboard_sheets: Gunakan optimasi Storyboard Sheets 4-in-1 (hemat ~70% kredit & anti-drift).
+    """
+    items = []
+    for ep in episodes:
+        items.append({
+            "title": ep.get("title", ""),
+            "idea": ep.get("idea", ""),
+            "script": ep.get("script", ""),
+            "style": ep.get("style", style),
+            "skill_id": ep.get("skill_id", skill_id),
+            "use_storyboard_sheets": ep.get("use_storyboard_sheets", use_storyboard_sheets),
+        })
+    return _http_post("/api/batch/add", {"items": items})
+
+
+@mcp.tool()
 def get_studio_info() -> Dict[str, Any]:
     """
     Dapatkan info status sistem MicroDrama Studio: koneksi LLM 9Router, status profil Google Flow,

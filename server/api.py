@@ -20,6 +20,7 @@ from pipelines.script2video import Script2VideoPipeline
 from agents.character_extractor import CharacterExtractor
 from tools.zernio_publisher import ZernioPublisher
 from tools.muapi_llm import MuAPILLM
+from tools.batch_queue_manager import BatchQueueManager
 
 
 # ---------------------------------------------------------------------------
@@ -54,11 +55,24 @@ app.mount("/outputs", StaticFiles(directory="outputs"), name="outputs")
 #   "queue": asyncio.Queue,    # fed by pipeline, consumed by SSE
 # }
 jobs: Dict[str, Dict[str, Any]] = {}
+batch_queue = BatchQueueManager()
 
 
 # ---------------------------------------------------------------------------
 # Request / Response schemas
 # ---------------------------------------------------------------------------
+class BatchAddRequest(BaseModel):
+    items: List[Dict[str, Any]]
+
+
+class BatchSingleAddRequest(BaseModel):
+    title: str = ""
+    idea: str
+    script: str = ""
+    style: str = "Cinematic"
+    skill_id: str = ""
+    mode: str = "idea2video"
+    use_storyboard_sheets: bool = True
 class SettingsRequest(BaseModel):
     llm_base_url: str = "http://localhost:20128/v1"
     llm_model: str = "gh/gpt-4o"
@@ -511,6 +525,121 @@ async def open_flow_browser():
         "status": "opened",
         "message": "Jendela Chrome Google Flow telah dibuka. Silakan login di browser tersebut.",
     }
+
+
+# ---------------------------------------------------------------------------
+# Overnight Batch & Scene Queue Endpoints
+# ---------------------------------------------------------------------------
+async def _batch_pipeline_runner(item: Dict[str, Any], progress_cb) -> str:
+    """Runner callback for BatchQueueManager."""
+    job_id = item["id"]
+    req = GenerateRequest(
+        idea=item["idea"],
+        style=item.get("style", "Cinematic"),
+        mode=item.get("mode", "idea2video"),
+        script=item.get("script", ""),
+        skill_id=item.get("skill_id", ""),
+        use_storyboard_sheets=item.get("use_storyboard_sheets", True),
+    )
+    jobs[job_id] = {
+        "status": "running",
+        "events": [],
+        "video_url": None,
+        "error": None,
+        "queue": asyncio.Queue(),
+    }
+
+    # Intercept progress callback to update batch queue item
+    async def wrapped_cb(stage: str, msg: str, pct: int):
+        await progress_cb(stage, msg, pct)
+        if job_id in jobs:
+            event = {"type": "progress", "stage": stage, "message": msg, "progress": pct}
+            jobs[job_id]["events"].append(event)
+            await jobs[job_id]["queue"].put(event)
+
+    await run_pipeline(job_id, req)
+    job = jobs.get(job_id)
+    if job and job.get("status") == "completed" and job.get("video_url"):
+        return job["video_url"]
+    elif job and job.get("error"):
+        raise RuntimeError(job["error"])
+    raise RuntimeError("Unknown batch execution error")
+
+
+@app.get("/api/batch/status")
+async def get_batch_status():
+    return await batch_queue.get_queue_status()
+
+
+@app.post("/api/batch/add")
+async def add_batch_items(req: BatchAddRequest):
+    added = await batch_queue.add_batch(req.items)
+    # Auto-start worker if not already running
+    if not batch_queue.is_running:
+        batch_queue.start_worker(_batch_pipeline_runner)
+    return {"status": "ok", "count": len(added), "items": added}
+
+
+@app.post("/api/batch/add-single")
+async def add_single_batch_item(req: BatchSingleAddRequest):
+    item = await batch_queue.add_item(
+        title=req.title,
+        idea=req.idea,
+        style=req.style,
+        skill_id=req.skill_id,
+        mode=req.mode,
+        script=req.script,
+        use_storyboard_sheets=req.use_storyboard_sheets,
+    )
+    if not batch_queue.is_running:
+        batch_queue.start_worker(_batch_pipeline_runner)
+    return {"status": "ok", "item": item}
+
+
+@app.post("/api/batch/start")
+async def start_batch():
+    batch_queue.is_paused = False
+    if not batch_queue.is_running:
+        batch_queue.start_worker(_batch_pipeline_runner)
+    return {"status": "started", "is_running": batch_queue.is_running}
+
+
+@app.post("/api/batch/pause")
+async def pause_batch():
+    await batch_queue.pause()
+    return {"status": "paused", "is_paused": True}
+
+
+@app.post("/api/batch/resume")
+async def resume_batch():
+    await batch_queue.resume()
+    if not batch_queue.is_running:
+        batch_queue.start_worker(_batch_pipeline_runner)
+    return {"status": "resumed", "is_paused": False}
+
+
+@app.post("/api/batch/retry/{item_id}")
+async def retry_batch_item(item_id: str):
+    success = await batch_queue.retry_item(item_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Item tidak ditemukan di antrean.")
+    if not batch_queue.is_running:
+        batch_queue.start_worker(_batch_pipeline_runner)
+    return {"status": "queued", "id": item_id}
+
+
+@app.delete("/api/batch/{item_id}")
+async def delete_batch_item(item_id: str):
+    removed = await batch_queue.remove_item(item_id)
+    if not removed:
+        raise HTTPException(status_code=404, detail="Item tidak ditemukan di antrean.")
+    return {"status": "removed", "id": item_id}
+
+
+@app.post("/api/batch/clear")
+async def clear_batch():
+    removed_count = await batch_queue.clear_completed()
+    return {"status": "cleared", "removed_count": removed_count}
 
 
 # ---------------------------------------------------------------------------

@@ -1,5 +1,7 @@
 import asyncio
 import os
+import random
+import shutil
 from pathlib import Path
 from typing import Callable, Awaitable, List, Optional
 
@@ -11,7 +13,7 @@ from tools.muapi_video_generator import MuAPIVideoGenerator
 from tools.muapi_uploader import upload_image_from_url
 from tools.storyboard_slicer import StoryboardSlicer
 from tools.autofix_engine import AutoFixEngine
-from utils.video import concatenate_videos, download_video
+from utils.video import concatenate_videos, download_video, create_still_video
 
 
 ProgressCallback = Callable[[str, str, int], Awaitable[None]]
@@ -107,26 +109,43 @@ class Script2VideoPipeline:
                 shots, characters, character_portrait_urls, style, progress_callback, base_progress, progress_range, scene_idx
             )
 
-        # Step 4: Generate videos in parallel
+        # Step 4: Generate videos sequentially (Concurrency = 1, Anti-Ban Throttling & Auto-Retry)
         await progress_callback(
             "video",
-            f"Generating videos for scene {scene_idx + 1}...",
+            f"Memulai rendering video berurutan scene {scene_idx + 1} (Concurrency = 1)...",
             base_progress + int(progress_range * 0.60),
         )
-        video_tasks = [
-            self._generate_shot_video(shot, i, working_dir)
-            for i, shot in enumerate(shots)
-            if shot.first_frame_url
-        ]
-        video_results = await asyncio.gather(*video_tasks, return_exceptions=True)
 
+        valid_shots = [s for s in shots if s.first_frame_url]
         shot_video_paths = []
-        for i, result in enumerate(video_results):
-            if isinstance(result, Exception):
-                print(f"Warning: video generation failed for shot {i}: {result}")
-            else:
-                shot_video_paths.append(result)
-                shots[i].video_url = result
+
+        for i, shot in enumerate(valid_shots):
+            # Natural anti-ban delay between shots
+            if i > 0:
+                inter_shot_delay = random.uniform(2.0, 5.0)
+                await progress_callback(
+                    "video",
+                    f"Anti-Ban Throttling: Menunggu jeda natural {inter_shot_delay:.1f}s sebelum shot {i + 1}...",
+                    base_progress + int(progress_range * (0.60 + 0.25 * (i / len(valid_shots)))),
+                )
+                await asyncio.sleep(inter_shot_delay)
+
+            await progress_callback(
+                "video",
+                f"Generating video shot {i + 1}/{len(valid_shots)} (scene {scene_idx + 1})...",
+                base_progress + int(progress_range * (0.60 + 0.25 * ((i + 0.5) / len(valid_shots)))),
+            )
+
+            # Auto-retry loop (up to 3 attempts with Auto-Fix & fallback)
+            v_path = await self._generate_shot_video_with_retry(
+                shot=shot,
+                shot_idx=i,
+                working_dir=working_dir,
+                progress_callback=progress_callback,
+            )
+            if v_path:
+                shot_video_paths.append(v_path)
+                shot.video_url = v_path
 
         if not shot_video_paths:
             raise RuntimeError(f"All video generation failed for scene {scene_idx + 1}")
@@ -313,6 +332,60 @@ class Script2VideoPipeline:
             shutil.copy(video_url, local_path)
 
         return local_path
+
+    async def _generate_shot_video_with_retry(
+        self,
+        shot: ShotDescription,
+        shot_idx: int,
+        working_dir: str,
+        progress_callback: ProgressCallback,
+        max_attempts: int = 3,
+    ) -> Optional[str]:
+        """Auto-retry loop (up to 3 attempts) with Auto-Fix Shield & graceful fallback."""
+        for attempt in range(1, max_attempts + 1):
+            try:
+                return await self._generate_shot_video(shot, shot_idx, working_dir)
+            except Exception as exc:
+                err_str = str(exc)
+                print(f"[VideoRetry] Shot {shot_idx + 1} attempt {attempt}/{max_attempts} failed: {err_str}")
+                if attempt < max_attempts:
+                    retry_delay = random.uniform(3.0, 6.0)
+                    await progress_callback(
+                        "video_retry",
+                        f"Auto-Retry: Shot {shot_idx + 1} gagal ({err_str[:60]}). Mencoba ulang ({attempt + 1}/{max_attempts}) dalam {retry_delay:.1f}s...",
+                        -1,
+                    )
+                    await asyncio.sleep(retry_delay)
+                else:
+                    print(f"[VideoRetry] Shot {shot_idx + 1} exceeded max attempts. Creating graceful still fallback clip...")
+                    await progress_callback(
+                        "video_retry",
+                        f"Shot {shot_idx + 1} gagal total. Mengaktifkan fallback frame sinematik agar episode tetap selesai...",
+                        -1,
+                    )
+                    return await self._create_fallback_clip(shot, shot_idx, working_dir)
+        return None
+
+    async def _create_fallback_clip(
+        self, shot: ShotDescription, shot_idx: int, working_dir: str
+    ) -> Optional[str]:
+        """Creates a smooth still video clip from the shot's first frame so the pipeline never crashes."""
+        if not shot.first_frame_url:
+            return None
+        fallback_path = str(Path(working_dir) / f"shot_{shot_idx:03d}_fallback.mp4")
+        try:
+            # If first_frame_url is a remote URL, download first
+            frame_source = shot.first_frame_url
+            if frame_source.startswith("http://") or frame_source.startswith("https://"):
+                local_img = str(Path(working_dir) / f"temp_frame_{shot_idx}.png")
+                await self._download_file(frame_source, local_img)
+                frame_source = local_img
+
+            await create_still_video(frame_source, fallback_path, duration=3.0)
+            return fallback_path
+        except Exception as e:
+            print(f"[FallbackClip] Error creating fallback clip: {e}")
+            return None
 
     async def _download_file(self, url: str, local_path: str):
         """Download file asynchronously."""

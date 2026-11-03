@@ -1,4 +1,6 @@
+import asyncio
 import os
+import random
 from pathlib import Path
 from typing import Callable, Awaitable, Optional
 
@@ -13,7 +15,7 @@ ProgressCallback = Callable[[str, str, int], Awaitable[None]]
 
 class Idea2VideoPipeline:
     def __init__(self, api_key: Optional[str] = None):
-        self.api_key = api_key or os.environ["MUAPI_KEY"]
+        self.api_key = api_key or os.environ.get("MUAPI_KEY", "")
         self.screenwriter = Screenwriter()
         self.character_extractor = CharacterExtractor()
         self.script2video = Script2VideoPipeline(api_key=self.api_key)
@@ -66,6 +68,16 @@ class Idea2VideoPipeline:
         progress_per_scene = int(58 / max(num_scenes, 1))
 
         for scene_idx, scene_script in enumerate(scene_scripts):
+            # Inter-scene Anti-Ban Throttling delay
+            if scene_idx > 0:
+                scene_delay = random.uniform(3.0, 6.0)
+                await progress_callback(
+                    "video",
+                    f"Anti-Ban Throttling: Menunggu jeda natural {scene_delay:.1f}s antar scene...",
+                    30 + scene_idx * progress_per_scene,
+                )
+                await asyncio.sleep(scene_delay)
+
             scene_dir = str(outputs_dir / f"scene_{scene_idx:02d}")
             base_progress = 30 + scene_idx * progress_per_scene
 

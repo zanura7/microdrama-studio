@@ -92,3 +92,26 @@ def _concat_sync(video_paths: List[str], output_path: str) -> None:
     finally:
         for clip in clips:
             clip.close()
+
+
+async def create_still_video(image_path: str, output_path: str, duration: float = 3.0) -> str:
+    """Create a short MP4 clip from a still image as a graceful fallback."""
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(None, _still_sync, image_path, output_path, duration)
+    return output_path
+
+
+def _still_sync(image_path: str, output_path: str, duration: float) -> None:
+    try:
+        from moviepy.editor import ImageClip
+    except ImportError:
+        from moviepy import ImageClip
+
+    clip = ImageClip(image_path).set_duration(duration).set_fps(24)
+    clip.write_videofile(
+        output_path,
+        codec="libx264",
+        audio=False,
+        logger=None,
+    )
+    clip.close()
