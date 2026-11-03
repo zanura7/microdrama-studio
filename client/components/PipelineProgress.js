@@ -45,21 +45,16 @@ export default function PipelineProgress({
 
   return (
     <div className="space-y-6">
-      {/* Stage timeline */}
-      <div
-        className="p-6 rounded-2xl"
-        style={{
-          backgroundColor: "#12121a",
-          border: "1px solid #1a1a26",
-        }}
-      >
-        <h2 className="text-sm font-semibold mb-6" style={{ color: "#94a3b8" }}>
-          Pipeline Progress
-        </h2>
+      {/* Stage timeline checklist */}
+      <div className="paper-card p-5 space-y-4">
+        <div className="flex items-center justify-between pb-2 border-b border-[#e6dfd1]">
+          <span className="font-bold text-sm text-[#2d2621]">Tahapan Produksi Naskah &amp; Render</span>
+          <span className="text-xs font-mono font-semibold text-[#c25e40]">{progress}% Selesai</span>
+        </div>
 
-        {/* Stage nodes */}
-        <div className="flex items-center gap-0">
-          {STAGES.map((stage, i) => {
+        {/* Stage nodes pills */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
+          {STAGES.map((stage) => {
             const state =
               status === "completed"
                 ? "done"
@@ -70,167 +65,141 @@ export default function PipelineProgress({
                 : getStageState(stage, progress);
 
             const Icon = stage.icon;
-            const isLast = i === STAGES.length - 1;
 
             return (
-              <div key={stage.id} className="flex items-center flex-1">
-                {/* Node */}
-                <div className="flex flex-col items-center" style={{ minWidth: 60 }}>
-                  <div
-                    className="w-10 h-10 rounded-full flex items-center justify-center mb-2 transition-all"
-                    style={{
-                      backgroundColor:
-                        state === "done"
-                          ? "rgba(124, 58, 237, 0.2)"
-                          : state === "active"
-                          ? "rgba(124, 58, 237, 0.15)"
-                          : state === "failed"
-                          ? "rgba(239, 68, 68, 0.15)"
-                          : "#1a1a26",
-                      border:
-                        state === "done"
-                          ? "2px solid #7c3aed"
-                          : state === "active"
-                          ? "2px solid rgba(124, 58, 237, 0.6)"
-                          : state === "failed"
-                          ? "2px solid rgba(239, 68, 68, 0.6)"
-                          : "2px solid #22223a",
-                      boxShadow:
-                        state === "active"
-                          ? "0 0 12px rgba(124, 58, 237, 0.4)"
-                          : "none",
-                    }}
-                  >
-                    {state === "done" ? (
-                      <CheckCircle size={16} style={{ color: "#7c3aed" }} />
-                    ) : state === "active" ? (
-                      <Loader2
-                        size={16}
-                        className="animate-spin"
-                        style={{ color: "#a78bfa" }}
-                      />
-                    ) : (
-                      <Icon
-                        size={15}
-                        style={{
-                          color:
-                            state === "failed" ? "#f87171" : "#4b5563",
-                        }}
-                      />
-                    )}
-                  </div>
-                  <span
-                    className="text-xs font-medium text-center"
-                    style={{
-                      color:
-                        state === "done"
-                          ? "#a78bfa"
-                          : state === "active"
-                          ? "#e2e8f0"
-                          : state === "failed"
-                          ? "#f87171"
-                          : "#4b5563",
-                    }}
-                  >
-                    {stage.label}
-                  </span>
+              <div
+                key={stage.id}
+                className={`p-2.5 rounded-xl border text-center transition-all flex flex-col items-center gap-1 ${
+                  state === "done"
+                    ? "bg-[#ebf3ea] border-[#d2e4d0] text-[#3b5f38]"
+                    : state === "active"
+                    ? "bg-[#fffdf9] border-[#c25e40] text-[#c25e40] shadow-xs ring-1 ring-[#c25e40]/20"
+                    : state === "failed"
+                    ? "bg-[#fcf0ec] border-[#f5d7ce] text-[#9e4328]"
+                    : "bg-[#ffffff] border-[#e6dfd1] text-[#aba092]"
+                }`}
+              >
+                <div className="flex items-center gap-1 text-[11px] font-semibold">
+                  {state === "done" && <CheckCircle size={12} className="text-[#3b5f38]" />}
+                  {state === "active" && <Loader2 size={12} className="animate-spin text-[#c25e40]" />}
+                  {state === "failed" && <span>✖</span>}
+                  {state === "pending" && <Circle size={10} />}
+                  <span>{stage.label}</span>
                 </div>
-
-                {/* Connector line */}
-                {!isLast && (
-                  <div
-                    className="flex-1 h-0.5 mx-1 transition-all"
-                    style={{
-                      backgroundColor:
-                        getStageState(stage, progress) === "done" ||
-                        status === "completed"
-                          ? "#7c3aed"
-                          : "#22223a",
-                      opacity:
-                        getStageState(stage, progress) === "done" ||
-                        status === "completed"
-                          ? 0.6
-                          : 1,
-                    }}
-                  />
-                )}
               </div>
             );
           })}
         </div>
 
-        {/* Progress bar */}
-        <div className="mt-8">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-xs" style={{ color: "#6b7280" }}>
-              {currentMessage}
-            </span>
-            <span
-              className="text-xs font-mono font-bold"
-              style={{ color: "#7c3aed" }}
-            >
-              {progress}%
-            </span>
+        {/* Modern Smooth Progress Bar */}
+        <div className="space-y-2 pt-2">
+          <div className="flex justify-between items-center text-xs">
+            <span className="font-medium text-[#473f37]">{currentMessage}</span>
+            <span className="font-mono font-bold text-[#c25e40]">{progress}%</span>
           </div>
-          <div
-            className="w-full h-1.5 rounded-full overflow-hidden"
-            style={{ backgroundColor: "#1a1a26" }}
-          >
+
+          <div className="w-full bg-[#e6dfd1]/60 h-2.5 rounded-full overflow-hidden">
             <div
-              className="h-full rounded-full transition-all duration-700"
-              style={{
-                width: `${progress}%`,
-                background:
-                  status === "failed"
-                    ? "#ef4444"
-                    : "linear-gradient(90deg, #7c3aed 0%, #a78bfa 100%)",
-                boxShadow:
-                  status !== "failed"
-                    ? "0 0 8px rgba(124, 58, 237, 0.5)"
-                    : "none",
-              }}
+              className="h-full bg-[#c25e40] rounded-full transition-all duration-500 ease-out"
+              style={{ width: `${progress}%` }}
             />
           </div>
         </div>
       </div>
 
-      {/* Live logs */}
-      {logs.length > 0 && (
-        <div
-          className="rounded-2xl overflow-hidden"
-          style={{
-            backgroundColor: "#0d0d14",
-            border: "1px solid #1a1a26",
-          }}
-        >
-          <div
-            className="px-4 py-3 flex items-center gap-2"
-            style={{ borderBottom: "1px solid #1a1a26" }}
-          >
-            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-xs font-medium" style={{ color: "#6b7280" }}>
-              Pipeline Log
+      {/* Flow Studio Style Scene Queue Tracker */}
+      <div className="paper-card p-4 space-y-3">
+        <div className="flex items-center justify-between pb-2 border-b border-[#e6dfd1] dark:border-[#38322b]">
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-xs text-[#2d2621] dark:text-[#f2ece3]">
+              ✦ Antrean Produksi Adegan (Scene Queue)
             </span>
+            <span className="paper-badge badge-terracotta text-[10px]">Storyboard Sheet 4-in-1</span>
           </div>
-          <div
-            className="p-4 max-h-48 overflow-y-auto font-mono text-xs space-y-1"
-            style={{ color: "#64748b" }}
-          >
-            {logs.map((log, i) => (
+          <span className="text-[11px] font-mono text-[#7f7466] dark:text-[#a89e90]">
+            Concurrent: 1 &bull; Auto-Fix: Ready
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+          {[1, 2, 3, 4].map((sceneNum) => {
+            const isCompleted = progress >= 88 || status === "completed";
+            const isRunning = !isCompleted && progress >= 30 && progress < 88;
+            return (
               <div
-                key={i}
-                className="flex gap-3"
-                style={{
-                  color:
-                    log.type === "complete"
-                      ? "#86efac"
-                      : log.type === "error"
-                      ? "#fca5a5"
-                      : "#94a3b8",
-                }}
+                key={sceneNum}
+                className={`p-2.5 rounded-lg border transition-all flex items-center justify-between ${
+                  isCompleted
+                    ? "bg-[#f5faf4] dark:bg-[#1a2419] border-[#cbe3c8] dark:border-[#2d402b]"
+                    : isRunning
+                    ? "bg-[#fffdf9] dark:bg-[#27231e] border-[#c25e40] shadow-xs ring-1 ring-[#c25e40]/20"
+                    : "bg-[#fbf7f0] dark:bg-[#1c1916] border-[#e6dfd1] dark:border-[#38322b] opacity-80"
+                }`}
               >
-                <span style={{ color: "#374151", flexShrink: 0 }}>{log.time}</span>
-                <span>{log.message}</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono font-bold text-[#2d2621] dark:text-[#f2ece3]">
+                    00{sceneNum}
+                  </span>
+                  <div className="flex flex-col">
+                    <span className="font-medium text-[#473f37] dark:text-[#dcd4c7]">
+                      Scene Adegan #{sceneNum}
+                    </span>
+                    <span className="text-[10px] text-[#7f7466] dark:text-[#998f82]">
+                      Grid 2x2 Master Sheet &bull; 9:16 HD
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#f2ece1] dark:bg-[#332c25] text-[#7f7466] dark:text-[#dcd4c7] font-mono">
+                    combined
+                  </span>
+                  {isCompleted ? (
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#ebf3ea] text-[#3b5f38] flex items-center gap-1">
+                      <CheckCircle size={10} /> done
+                    </span>
+                  ) : isRunning ? (
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#fdf0ec] text-[#c25e40] flex items-center gap-1 animate-pulse">
+                      <Loader2 size={10} className="animate-spin" /> running
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#f2ece1] dark:bg-[#332c25] text-[#7f7466] dark:text-[#a89e90]">
+                      queued
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Live execution logs note */}
+      {logs.length > 0 && (
+        <div className="paper-card p-4 space-y-2">
+          <div className="flex items-center justify-between pb-2 border-b border-[#e6dfd1]">
+            <span className="font-semibold text-xs text-[#2d2621]">Catatan Aktivitas Sistem (Live Logs)</span>
+            <span className="text-[11px] text-[#7f7466]">{logs.length} catatan</span>
+          </div>
+          <div className="p-3 bg-[#ffffff] border border-[#e6dfd1] rounded-xl font-mono text-[11px] max-h-48 overflow-y-auto space-y-1.5 text-[#473f37] select-text">
+            {logs.map((log, i) => (
+              <div key={i} className="flex gap-2 leading-relaxed">
+                <span className="text-[#aba092] select-none">[{log.time}]</span>
+                <span
+                  className={
+                    log.type === "complete"
+                      ? "text-[#3b5f38] font-semibold"
+                      : log.type === "error"
+                      ? "text-[#c25e40] font-semibold"
+                      : log.stage === "autofix"
+                      ? "text-[#d68d30] font-semibold"
+                      : log.stage === "storyboard_sheet"
+                      ? "text-[#c25e40] font-semibold"
+                      : "text-[#473f37]"
+                  }
+                >
+                  {log.message}
+                </span>
               </div>
             ))}
             <div ref={logsEndRef} />

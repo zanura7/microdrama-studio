@@ -3,6 +3,7 @@ import os
 from typing import Optional
 
 import httpx
+from .llm_router import LLMRouter
 
 
 MUAPI_BASE = "https://api.muapi.ai/api/v1"
@@ -10,10 +11,13 @@ POLL_INTERVAL = 3
 
 
 class MuAPILLM:
-    """Calls MuAPI's claude-sonnet-4-6 LLM endpoint and polls for the text result."""
+    """Seamless LLM router: forwards calls to LLMRouter (9Router/OpenAI-compatible)
+    or falls back to MuAPI if explicitly configured.
+    """
 
     def __init__(self, api_key: Optional[str] = None):
-        self.api_key = api_key or os.environ["MUAPI_KEY"]
+        self.router = LLMRouter()
+        self.api_key = api_key or os.environ.get("MUAPI_KEY", "")
         self.headers = {"x-api-key": self.api_key, "Content-Type": "application/json"}
 
     async def complete(
@@ -23,11 +27,15 @@ class MuAPILLM:
         timeout: int = 120,
         fallback: Optional[str] = None,
     ) -> str:
-        """Submit an LLM completion request and return the response text.
+        # If 9Router/OpenAI is configured (or by default), use LLMRouter
+        if os.environ.get("OPENAI_BASE_URL") or not self.api_key:
+            return await self.router.complete(
+                prompt=prompt,
+                system_prompt=system_prompt,
+                timeout=timeout,
+                fallback=fallback,
+            )
 
-        fallback: returned as-is when the API gives an empty or non-text output
-                  (e.g. sandbox/demo keys that don't execute real LLM calls).
-        """
         payload: dict = {"prompt": prompt}
         if system_prompt:
             payload["system_prompt"] = system_prompt

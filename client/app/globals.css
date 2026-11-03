@@ -3,69 +3,309 @@
 @tailwind utilities;
 
 :root {
-  --background: #0a0a0f;
-  --surface: #12121a;
+  --desk-bg: #f4efe6;
+  --paper-bg: #fffdf9;
+  --paper-subtle: #f9f5ec;
+  --paper-subtle-hover: #f3edd0;
+  --paper-border: #e6dfd1;
+  --paper-border-dark: #d2c8b8;
+  
+  --ink-primary: #2d2621;
+  --ink-body: #473f37;
+  --ink-muted: #7f7466;
+  --ink-faint: #aba092;
+  
+  --accent-terracotta: #c25e40;
+  --accent-terracotta-hover: #aa4d32;
+  --accent-sage: #587955;
+  --accent-indigo: #486683;
+  --accent-honey: #d68d30;
+  
+  --ruled-line: #ece6dc;
+  --margin-line: #f2aba4;
 }
 
 * {
   box-sizing: border-box;
-  padding: 0;
   margin: 0;
+  padding: 0;
 }
 
-html,
 body {
-  max-width: 100vw;
-  overflow-x: hidden;
-  background-color: var(--background);
-  color: #e2e8f0;
+  background-color: #fbf9f5;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    #fbf9f5,
+    #fbf9f5 31px,
+    #f2ece1 31px,
+    #f2ece1 32px
+  );
+  background-size: 100% 32px;
+  color: var(--ink-body);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-}
-::-webkit-scrollbar-track {
-  background: #12121a;
-}
-::-webkit-scrollbar-thumb {
-  background: #3b3b5c;
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #7c3aed;
-}
-
-/* Gradient text utility */
-.gradient-text {
-  background: linear-gradient(135deg, #a78bfa 0%, #7c3aed 50%, #6d28d9 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-/* Glass card */
-.glass {
-  background: rgba(18, 18, 26, 0.8);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(124, 58, 237, 0.15);
-}
-
-/* Animated border gradient */
-.border-glow {
+/* Notebook Sheet / Paper Page */
+.paper-sheet {
+  background-color: var(--paper-bg);
+  border: 1px solid var(--paper-border);
+  border-radius: 16px;
+  box-shadow: 
+    0 1px 3px rgba(50, 40, 30, 0.04),
+    0 16px 36px -4px rgba(50, 40, 30, 0.08),
+    0 3px 8px rgba(50, 40, 30, 0.03);
   position: relative;
 }
-.border-glow::before {
-  content: "";
-  position: absolute;
-  inset: -1px;
-  background: linear-gradient(135deg, #7c3aed, #a78bfa, #7c3aed);
-  border-radius: inherit;
-  z-index: -1;
-  opacity: 0;
-  transition: opacity 0.3s;
+
+/* Soft Paper Card / Container */
+.paper-card {
+  background-color: var(--paper-subtle);
+  border: 1px solid var(--paper-border);
+  border-radius: 12px;
+  transition: all 0.2s ease;
 }
-.border-glow:focus-within::before {
-  opacity: 1;
+
+.paper-card:hover {
+  border-color: var(--paper-border-dark);
 }
+
+/* Notebook Ruled Texture for text areas */
+.paper-ruled {
+  background-color: #ffffff;
+  background-image: repeating-linear-gradient(
+    transparent,
+    transparent 31px,
+    var(--ruled-line) 31px,
+    var(--ruled-line) 32px
+  );
+  line-height: 32px;
+}
+
+/* Soft Clean Inputs */
+.paper-input {
+  background-color: #ffffff;
+  border: 1px solid var(--paper-border);
+  border-radius: 10px;
+  color: var(--ink-primary);
+  font-size: 13px;
+  transition: all 0.2s ease;
+}
+
+.paper-input:focus {
+  outline: none;
+  border-color: var(--accent-terracotta);
+  box-shadow: 0 0 0 3px rgba(194, 94, 64, 0.12);
+}
+
+/* Sticky Note Style */
+.sticky-note {
+  background-color: #fdfae7;
+  border: 1px solid #f2e7b8;
+  border-radius: 10px;
+  box-shadow: 0 3px 10px rgba(120, 100, 40, 0.05);
+}
+
+/* Soft Buttons */
+.btn-terracotta {
+  background-color: var(--accent-terracotta);
+  color: #ffffff;
+  font-weight: 600;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(194, 94, 64, 0.25);
+  transition: all 0.2s ease;
+}
+
+.btn-terracotta:hover {
+  background-color: var(--accent-terracotta-hover);
+  box-shadow: 0 4px 12px rgba(194, 94, 64, 0.35);
+  transform: translateY(-1px);
+}
+
+.btn-terracotta:active {
+  transform: translateY(0);
+}
+
+.btn-paper {
+  background-color: #ffffff;
+  color: var(--ink-body);
+  border: 1px solid var(--paper-border);
+  font-weight: 500;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+}
+
+.btn-paper:hover {
+  background-color: var(--paper-subtle);
+  border-color: var(--paper-border-dark);
+  color: var(--ink-primary);
+}
+
+/* Paper Badge / Tag */
+.paper-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.badge-sage {
+  background-color: #ebf3ea;
+  color: #3b5f38;
+  border: 1px solid #d2e4d0;
+}
+
+.badge-honey {
+  background-color: #fdf5e6;
+  color: #8c5b1b;
+  border: 1px solid #f5e4c4;
+}
+
+.badge-terracotta {
+  background-color: #fcf0ec;
+  color: #9e4328;
+  border: 1px solid #f5d7ce;
+}
+
+.badge-indigo {
+  background-color: #edf3f8;
+  color: #315272;
+  border: 1px solid #d5e3ef;
+}
+
+/* ========================================================================= */
+/* DARK THEME: Buku Tulis & Jurnal Malam (Dark Slate / Kraft Notebook)       */
+/* ========================================================================= */
+
+html.dark,
+.dark {
+  color-scheme: dark;
+}
+
+.dark body {
+  background-color: #161412;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    #161412,
+    #161412 31px,
+    #23201c 31px,
+    #23201c 32px
+  );
+  color: #dcd4c7;
+}
+
+.dark .paper-sheet {
+  background-color: #1f1c19;
+  border-color: #38322b;
+  box-shadow: 
+    0 1px 3px rgba(0, 0, 0, 0.2),
+    0 16px 36px -4px rgba(0, 0, 0, 0.45),
+    0 3px 8px rgba(0, 0, 0, 0.2);
+}
+
+.dark .paper-card {
+  background-color: #27231e;
+  border-color: #38322b;
+}
+
+.dark .paper-card:hover {
+  border-color: #4d4439;
+}
+
+.dark .paper-ruled {
+  background-color: #181614;
+  background-image: repeating-linear-gradient(
+    transparent,
+    transparent 31px,
+    #292520 31px,
+    #292520 32px
+  );
+  color: #f2ece3;
+}
+
+.dark .paper-input {
+  background-color: #181614;
+  border-color: #38322b;
+  color: #f2ece3;
+}
+
+.dark .paper-input:focus {
+  border-color: #e07153;
+  box-shadow: 0 0 0 3px rgba(224, 113, 83, 0.2);
+}
+
+.dark .sticky-note {
+  background-color: #272318;
+  border-color: #453c25;
+  color: #ebdcb6;
+}
+
+.dark .btn-paper {
+  background-color: #25221e;
+  border-color: #38322b;
+  color: #dcd4c7;
+}
+
+.dark .btn-paper:hover {
+  background-color: #2f2a24;
+  border-color: #4d4439;
+  color: #f5efe6;
+}
+
+.dark .btn-terracotta {
+  background-color: #c25e40;
+  color: #ffffff;
+}
+
+.dark .btn-terracotta:hover {
+  background-color: #d46b4c;
+}
+
+.dark .badge-sage {
+  background-color: rgba(88, 121, 85, 0.2);
+  color: #9ecc9a;
+  border-color: rgba(88, 121, 85, 0.4);
+}
+
+.dark .badge-honey {
+  background-color: rgba(214, 141, 48, 0.2);
+  color: #f0bd75;
+  border-color: rgba(214, 141, 48, 0.4);
+}
+
+.dark .badge-terracotta {
+  background-color: rgba(194, 94, 64, 0.2);
+  color: #f29a80;
+  border-color: rgba(194, 94, 64, 0.4);
+}
+
+.dark .badge-indigo {
+  background-color: rgba(72, 102, 131, 0.2);
+  color: #9fc1e2;
+  border-color: rgba(72, 102, 131, 0.4);
+}
+
+/* Specific text & background overrides for dark theme */
+.dark .text-\[\#2d2621\] { color: #f2ede4 !important; }
+.dark .text-\[\#473f37\] { color: #dcd4c7 !important; }
+.dark .text-\[\#7f7466\] { color: #a69b8d !important; }
+.dark .text-\[\#aba092\] { color: #7e7468 !important; }
+.dark .border-\[\#e6dfd1\] { border-color: #38322b !important; }
+.dark .border-\[\#e6dfd1\]\/60 { border-color: rgba(56, 50, 43, 0.6) !important; }
+.dark .bg-\[\#ffffff\] { background-color: #181614 !important; }
+.dark .bg-\[\#fffdf9\] { background-color: #24201c !important; }
+.dark .bg-\[\#fbf7f0\] { background-color: #1a1714 !important; }
+.dark .bg-\[\#f6f0e4\] { background-color: #24201c !important; }
+.dark .text-\[\#66501c\] { color: #f0bd75 !important; }
+.dark .bg-\[\#f4efe6\] { background-color: #27231e !important; }
+.dark .bg-\[\#fcf0ec\] { background-color: #331f1a !important; }
+.dark .border-\[\#f5d7ce\] { border-color: #593127 !important; }
+.dark .text-\[\#9e4328\] { color: #f29a80 !important; }
+.dark .bg-\[\#ebf3ea\] { background-color: #1b291a !important; }
+.dark .border-\[\#d2e4d0\] { border-color: #2e4a2c !important; }
+.dark .text-\[\#3b5f38\] { color: #9ecc9a !important; }
+

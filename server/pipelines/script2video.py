@@ -9,6 +9,8 @@ from interfaces.shot import ShotDescription
 from tools.muapi_image_generator import MuAPIImageGenerator
 from tools.muapi_video_generator import MuAPIVideoGenerator
 from tools.muapi_uploader import upload_image_from_url
+from tools.storyboard_slicer import StoryboardSlicer
+from tools.autofix_engine import AutoFixEngine
 from utils.video import concatenate_videos, download_video
 
 
@@ -17,10 +19,11 @@ ProgressCallback = Callable[[str, str, int], Awaitable[None]]
 
 class Script2VideoPipeline:
     def __init__(self, api_key: Optional[str] = None):
-        self.api_key = api_key or os.environ["MUAPI_KEY"]
+        self.api_key = api_key or os.environ.get("MUAPI_KEY", "")
         self.storyboard_artist = StoryboardArtist()
         self.image_gen = MuAPIImageGenerator(api_key=self.api_key)
         self.video_gen = MuAPIVideoGenerator(api_key=self.api_key)
+        self.autofix = AutoFixEngine()
 
     async def run(
         self,
@@ -33,10 +36,12 @@ class Script2VideoPipeline:
         scene_idx: int = 0,
         base_progress: int = 30,
         progress_range: int = 60,
+        use_storyboard_sheets: bool = True,
     ) -> str:
         """
         Run the script-to-video pipeline for a single scene.
-        Returns the path to the final scene video.
+        Supports Flow Studio / 0xFlow style Storyboard Sheets (4 scenes in 1 image)
+        and intelligent Auto-Fix safety repair.
         """
         Path(working_dir).mkdir(parents=True, exist_ok=True)
 
@@ -75,18 +80,32 @@ class Script2VideoPipeline:
             ShotDescription(**s.model_dump()) for s in shots_brief
         ]
 
-        # Step 3: Generate first frames sequentially (to maintain visual order)
-        frame_progress_step = int(progress_range * 0.35 / max(len(shots), 1))
-        for i, shot in enumerate(shots):
+        # Step 3: Generate first frames (Storyboard Sheets 4-in-1 or Sequential Fallback)
+        if use_storyboard_sheets and len(shots) >= 2:
             await progress_callback(
-                "frames",
-                f"Generating frame for shot {i + 1}/{len(shots)} (scene {scene_idx + 1})...",
-                base_progress + int(progress_range * 0.20) + i * frame_progress_step,
+                "storyboard_sheet",
+                f"Generating Storyboard Sheet (4-in-1 Grid) for Scene {scene_idx + 1}...",
+                base_progress + int(progress_range * 0.25),
             )
-            frame_url = await self._generate_first_frame(
-                shot, characters, character_portrait_urls, style
+            try:
+                await self._process_storyboard_sheets(
+                    shots=shots,
+                    characters=characters,
+                    style=style,
+                    working_dir=working_dir,
+                    scene_idx=scene_idx,
+                    progress_callback=progress_callback,
+                    base_progress=base_progress + int(progress_range * 0.25),
+                )
+            except Exception as e:
+                print(f"[StoryboardSlicer] Sheet processing error ({e}), falling back to single frame T2I...")
+                await self._fallback_single_frames(
+                    shots, characters, character_portrait_urls, style, progress_callback, base_progress, progress_range, scene_idx
+                )
+        else:
+            await self._fallback_single_frames(
+                shots, characters, character_portrait_urls, style, progress_callback, base_progress, progress_range, scene_idx
             )
-            shot.first_frame_url = frame_url
 
         # Step 4: Generate videos in parallel
         await progress_callback(
@@ -123,8 +142,86 @@ class Script2VideoPipeline:
 
         return scene_video_path
 
+    async def _process_storyboard_sheets(
+        self,
+        shots: List[ShotDescription],
+        characters: List[CharacterInScene],
+        style: str,
+        working_dir: str,
+        scene_idx: int,
+        progress_callback: ProgressCallback,
+        base_progress: int,
+    ):
+        """Processes shots in groups of 4 using 2x2 Storyboard Sheets with Auto-Fix."""
+        chunk_size = 4
+        for chunk_idx in range(0, len(shots), chunk_size):
+            batch_shots = shots[chunk_idx : chunk_idx + chunk_size]
+            prompt = StoryboardSlicer.build_sheet_prompt(
+                [s.model_dump() for s in batch_shots], characters, style=style
+            )
+
+            # Generate sheet with Auto-Fix support
+            sheet_img_url = None
+            try:
+                sheet_img_url = await self.image_gen.generate_image(prompt, aspect_ratio="1:1")
+            except Exception as exc:
+                if self.autofix.is_refusal_error(str(exc)):
+                    await progress_callback(
+                        "autofix",
+                        f"Auto-Fix: Sensor terdeteksi, menulis ulang prompt Storyboard Sheet {chunk_idx // 4 + 1}...",
+                        base_progress + 5,
+                    )
+                    repaired_prompt = await self.autofix.repair_prompt(prompt, reason=str(exc))
+                    sheet_img_url = await self.image_gen.generate_image(repaired_prompt, aspect_ratio="1:1")
+                else:
+                    raise exc
+
+            # Resolve local image file
+            sheet_local_path = Path(working_dir) / f"sheet_batch_{chunk_idx // 4}.png"
+            if sheet_img_url.startswith("http://") or sheet_img_url.startswith("https://"):
+                await self._download_file(sheet_img_url, str(sheet_local_path))
+            else:
+                shutil.copy(sheet_img_url, str(sheet_local_path))
+
+            # Slice into 9:16 vertical frames
+            sliced_paths = StoryboardSlicer.slice_sheet(
+                str(sheet_local_path),
+                working_dir,
+                prefix=f"sliced_sc{scene_idx + 1}_b{chunk_idx // 4}",
+                target_aspect_ratio=(9, 16),
+            )
+
+            # Assign sliced frames back to shots
+            for i, shot in enumerate(batch_shots):
+                if i < len(sliced_paths):
+                    shot.first_frame_url = sliced_paths[i]
+
+    async def _fallback_single_frames(
+        self,
+        shots: List[ShotDescription],
+        characters: List[CharacterInScene],
+        character_portrait_urls: dict,
+        style: str,
+        progress_callback: ProgressCallback,
+        base_progress: int,
+        progress_range: int,
+        scene_idx: int,
+    ):
+        """Fallback to individual shot frame generation."""
+        frame_progress_step = int(progress_range * 0.35 / max(len(shots), 1))
+        for i, shot in enumerate(shots):
+            await progress_callback(
+                "frames",
+                f"Generating frame for shot {i + 1}/{len(shots)} (scene {scene_idx + 1})...",
+                base_progress + int(progress_range * 0.20) + i * frame_progress_step,
+            )
+            frame_url = await self._generate_first_frame(
+                shot, characters, character_portrait_urls, style
+            )
+            shot.first_frame_url = frame_url
+
     async def _generate_portrait(self, character: CharacterInScene, style: str) -> str:
-        """Generate a character portrait image."""
+        """Generate a character portrait image with Auto-Fix."""
         prompt = (
             f"Professional portrait photo of {character.name}. "
             f"{character.static_features}. "
@@ -133,7 +230,13 @@ class Script2VideoPipeline:
             "High quality, detailed face, neutral background, studio lighting, "
             "character reference sheet, full face visible."
         )
-        return await self.image_gen.generate_image(prompt, aspect_ratio="2:3")
+        try:
+            return await self.image_gen.generate_image(prompt, aspect_ratio="2:3")
+        except Exception as exc:
+            if self.autofix.is_refusal_error(str(exc)):
+                repaired = await self.autofix.repair_prompt(prompt, reason=str(exc))
+                return await self.image_gen.generate_image(repaired, aspect_ratio="2:3")
+            raise exc
 
     async def _generate_first_frame(
         self,
@@ -143,7 +246,6 @@ class Script2VideoPipeline:
         style: str,
     ) -> str:
         """Generate the first frame for a shot, using character references if available."""
-        # Find which characters appear in this shot
         mentioned_chars = [
             c for c in characters if c.name.lower() in shot.visual_desc.lower()
         ]
@@ -154,30 +256,30 @@ class Script2VideoPipeline:
 
         char_desc = ""
         if mentioned_chars:
-            char_desc = " ".join(
-                [
-                    f"{c.name} ({c.dynamic_features})"
-                    for c in mentioned_chars
-                ]
-            )
+            char_desc = " ".join([f"{c.name} ({c.dynamic_features})" for c in mentioned_chars])
 
         full_prompt = (
             f"{shot.visual_desc}. "
             f"{char_desc}. "
             f"Style: {style}. "
-            "Cinematic composition, 16:9 aspect ratio, high quality, detailed."
+            "Cinematic composition, 9:16 vertical ratio, high quality, detailed."
         )
 
-        if reference_url:
-            try:
-                return await self.image_gen.generate_image_with_reference(
-                    full_prompt, reference_url, aspect_ratio="16:9"
-                )
-            except Exception as e:
-                print(f"Warning: reference image generation failed, falling back to T2I: {e}")
+        try:
+            if reference_url:
+                try:
+                    return await self.image_gen.generate_image_with_reference(
+                        full_prompt, reference_url, aspect_ratio="9:16"
+                    )
+                except Exception as e:
+                    print(f"Warning: reference image generation failed, falling back to T2I: {e}")
 
-        # Fallback to regular T2I
-        return await self.image_gen.generate_image(full_prompt, aspect_ratio="16:9")
+            return await self.image_gen.generate_image(full_prompt, aspect_ratio="9:16")
+        except Exception as exc:
+            if self.autofix.is_refusal_error(str(exc)):
+                repaired = await self.autofix.repair_prompt(full_prompt, reason=str(exc))
+                return await self.image_gen.generate_image(repaired, aspect_ratio="9:16")
+            raise exc
 
     async def _generate_shot_video(
         self, shot: ShotDescription, shot_idx: int, working_dir: str
@@ -186,22 +288,41 @@ class Script2VideoPipeline:
         if not shot.first_frame_url:
             raise ValueError(f"Shot {shot_idx} has no first_frame_url")
 
-        # Build video prompt from motion + audio descriptions
         video_prompt = f"{shot.motion_desc}. {shot.audio_desc}"
-
-        # Upload the first frame to get a stable MuAPI URL if needed
         frame_url = shot.first_frame_url
-        if not frame_url.startswith("https://api.muapi.ai"):
-            try:
-                frame_url = await upload_image_from_url(frame_url, self.api_key)
-            except Exception as e:
-                print(f"Warning: re-upload failed, using original URL: {e}")
 
-        video_url = await self.video_gen.generate_video_from_image(
-            video_prompt, frame_url, duration=5, aspect_ratio="16:9"
-        )
+        try:
+            video_url = await self.video_gen.generate_video_from_image(
+                video_prompt, frame_url, duration=10, aspect_ratio="9:16"
+            )
+        except Exception as exc:
+            if self.autofix.is_refusal_error(str(exc)):
+                repaired_video_prompt = await self.autofix.repair_prompt(
+                    video_prompt, reason=str(exc), media_type="video motion"
+                )
+                video_url = await self.video_gen.generate_video_from_image(
+                    repaired_video_prompt, frame_url, duration=10, aspect_ratio="9:16"
+                )
+            else:
+                raise exc
 
-        # Download the video locally
         local_path = str(Path(working_dir) / f"shot_{shot_idx:03d}.mp4")
-        await download_video(video_url, local_path)
+        if video_url.startswith("http://") or video_url.startswith("https://"):
+            await download_video(video_url, local_path)
+        else:
+            shutil.copy(video_url, local_path)
+
         return local_path
+
+    async def _download_file(self, url: str, local_path: str):
+        """Download file asynchronously."""
+        def dl():
+            req = urllib.request.Request(
+                url,
+                headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"},
+            )
+            with urllib.request.urlopen(req, timeout=45) as r, open(local_path, "wb") as f:
+                f.write(r.read())
+
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, dl)

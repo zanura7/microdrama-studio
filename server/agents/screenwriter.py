@@ -46,7 +46,7 @@ class Screenwriter:
     def __init__(self):
         self.llm = MuAPILLM()
 
-    async def develop_story(self, idea: str, user_requirement: str) -> str:
+    async def develop_story(self, idea: str, user_requirement: str = "", skill_rules: str = "") -> str:
         system_prompt = (
             "You are a professional screenwriter and story developer. "
             "Your task is to expand a brief idea into a compelling story outline. "
@@ -54,11 +54,15 @@ class Screenwriter:
             "Keep it suitable for a short video (1-3 minutes). "
             "Write in clear prose, focusing on visual storytelling."
         )
+        if skill_rules:
+            system_prompt += f"\n\nFOLLOW THESE STORYTELLING SKILL & FORMULA RULES STRICTLY:\n{skill_rules}"
+
         prompt = f"""Develop a story based on this idea:
 
 Idea: {idea}
 
 Additional requirements: {user_requirement if user_requirement else "None"}
+{f"Active Skill Formula Guidelines:\n{skill_rules}" if skill_rules else ""}
 
 Write a detailed story outline that can be translated into a short video. Include:
 - Setting and atmosphere
@@ -74,7 +78,7 @@ Write the story outline as flowing prose."""
             prompt, system_prompt=system_prompt, timeout=120, fallback=_FALLBACK_STORY
         )
 
-    async def write_script_based_on_story(self, story: str, user_requirement: str) -> List[str]:
+    async def write_script_based_on_story(self, story: str, user_requirement: str = "", skill_rules: str = "") -> List[str]:
         system_prompt = (
             "You are a professional screenwriter. "
             "Your task is to break a story outline into individual scene scripts. "
@@ -82,12 +86,16 @@ Write the story outline as flowing prose."""
             "Write 2-4 scenes maximum. "
             "Respond ONLY with valid JSON — no markdown, no explanation, just JSON."
         )
+        if skill_rules:
+            system_prompt += f"\n\nFOLLOW THESE STORYTELLING SKILL & FORMULA RULES STRICTLY:\n{skill_rules}"
+
         prompt = f"""Based on this story outline, write individual scene scripts for a short video.
 
 Story Outline:
 {story}
 
 Additional requirements: {user_requirement if user_requirement else "None"}
+{f"Active Skill Formula Guidelines:\n{skill_rules}" if skill_rules else ""}
 
 Return a JSON object with this exact structure:
 {{

@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+dist/
+*.egg-info/
+
+# Next.js / Node
+node_modules/
+client/node_modules/
+client/.next/
+client/out/
+.next/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environments & Secrets (STRICT PROTECTION)
+.env
+.env.*
+!.env.example
+server/.env
+server/.env.*
+!server/.env.example
+*.key
+*.pem
+secrets/
+
+# Video Outputs & Temporary Media
+outputs/
+server/outputs/
+*.mp4
+*.png
+*.jpg
+*.jpeg
+*.log
+temp/
+tmp/
+.temp/
+
+# OS specific
+.DS_Store
+Thumbs.db

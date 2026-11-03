@@ -4,7 +4,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useState, useRef } from "react";
 import PipelineProgress from "../../../components/PipelineProgress";
 import VideoResult from "../../../components/VideoResult";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Sun, Moon } from "lucide-react";
 import Link from "next/link";
 
 export default function GeneratePage() {
@@ -16,7 +16,31 @@ export default function GeneratePage() {
   const [progress, setProgress] = useState(0);
   const [currentMessage, setCurrentMessage] = useState("Starting pipeline...");
   const [logs, setLogs] = useState([]);
+  const [isDark, setIsDark] = useState(false);
   const esRef = useRef(null);
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("microdrama_theme");
+    if (savedTheme === "dark") {
+      document.documentElement.classList.add("dark");
+      setIsDark(true);
+    } else {
+      document.documentElement.classList.remove("dark");
+      setIsDark(false);
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    if (isDark) {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("microdrama_theme", "light");
+      setIsDark(false);
+    } else {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("microdrama_theme", "dark");
+      setIsDark(true);
+    }
+  };
 
   useEffect(() => {
     if (!jobId) return;
@@ -83,115 +107,108 @@ export default function GeneratePage() {
   }, [jobId]);
 
   return (
-    <main
-      className="min-h-screen"
-      style={{ backgroundColor: "#0a0a0f" }}
-    >
-      {/* Top bar */}
-      <div
-        className="sticky top-0 z-10 px-6 py-4 flex items-center gap-4"
-        style={{
-          backgroundColor: "rgba(10, 10, 15, 0.9)",
-          backdropFilter: "blur(12px)",
-          borderBottom: "1px solid #1a1a26",
-        }}
-      >
+    <div className="min-h-screen py-8 px-4 sm:px-6 flex flex-col justify-between">
+      {/* Top Navigation */}
+      <header className="max-w-4xl mx-auto w-full mb-6 flex flex-wrap items-center justify-between gap-4">
         <Link
           href="/"
-          className="flex items-center gap-2 text-sm transition-colors"
-          style={{ color: "#6b7280" }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = "#a78bfa")}
-          onMouseLeave={(e) => (e.currentTarget.style.color = "#6b7280")}
+          className="btn-paper py-2 px-3.5 text-xs font-semibold text-[#2d2621] flex items-center gap-2 cursor-pointer no-underline"
         >
-          <ArrowLeft size={16} />
-          New video
+          <ArrowLeft size={14} className="text-[#c25e40]" />
+          <span>Kembali ke Studio</span>
         </Link>
-        <div
-          className="h-4 w-px"
-          style={{ backgroundColor: "#22223a" }}
-        />
-        <span className="text-sm" style={{ color: "#4b5563" }}>
-          Job: <span style={{ color: "#7c3aed", fontFamily: "monospace" }}>{jobId}</span>
-        </span>
 
-        {/* Status badge */}
-        <div className="ml-auto">
+        <div className="flex items-center gap-2">
           {status === "running" && (
-            <span
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium"
-              style={{
-                backgroundColor: "rgba(234, 179, 8, 0.15)",
-                border: "1px solid rgba(234, 179, 8, 0.3)",
-                color: "#fde047",
-              }}
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse" />
-              Generating
+            <span className="paper-badge badge-honey animate-pulse">
+              ● Sedang Merender ({progress}%)
             </span>
           )}
           {status === "completed" && (
-            <span
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium"
-              style={{
-                backgroundColor: "rgba(34, 197, 94, 0.15)",
-                border: "1px solid rgba(34, 197, 94, 0.3)",
-                color: "#86efac",
-              }}
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
-              Complete
+            <span className="paper-badge badge-sage">
+              ✔ Produksi Selesai (100%)
             </span>
           )}
           {status === "failed" && (
-            <span
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium"
-              style={{
-                backgroundColor: "rgba(239, 68, 68, 0.15)",
-                border: "1px solid rgba(239, 68, 68, 0.3)",
-                color: "#fca5a5",
-              }}
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
-              Failed
+            <span className="paper-badge badge-terracotta">
+              ✖ Render Terhenti
             </span>
           )}
-        </div>
-      </div>
 
-      <div className="max-w-5xl mx-auto px-6 py-10">
-        {/* Result */}
+          {/* Theme Toggle Button */}
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="btn-paper py-1.5 px-3 text-xs flex items-center gap-1.5 cursor-pointer ml-1"
+            title={isDark ? "Ganti ke Tema Terang" : "Ganti ke Tema Gelap"}
+          >
+            {isDark ? (
+              <>
+                <Sun size={14} className="text-[#e8a548]" />
+                <span className="font-medium text-xs">Terang</span>
+              </>
+            ) : (
+              <>
+                <Moon size={14} className="text-[#486683]" />
+                <span className="font-medium text-xs">Gelap</span>
+              </>
+            )}
+          </button>
+        </div>
+      </header>
+
+      {/* Main Notebook Container */}
+      <main className="max-w-4xl mx-auto w-full paper-sheet p-6 sm:p-10 mb-8 space-y-6">
+        {/* Page Header */}
+        <div className="pb-6 border-b border-[#e6dfd1] flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#c25e40] mb-1 uppercase tracking-wider">
+              <span>🎬</span>
+              <span>Lembar Produksi &amp; Pemantauan Job</span>
+            </div>
+            <h2 className="text-xl sm:text-2xl font-bold text-[#2d2621]">
+              Status Eksekusi Serial AI
+            </h2>
+          </div>
+          <div className="text-right">
+            <span className="text-[11px] text-[#7f7466] block">ID Naskah / Job:</span>
+            <code className="text-xs font-mono font-semibold text-[#2d2621] bg-[#f4efe6] px-2 py-1 rounded-md border border-[#e6dfd1]">
+              {jobId}
+            </code>
+          </div>
+        </div>
+
+        {/* Video Result Card (When Completed) */}
         {status === "completed" && videoUrl && (
-          <div className="mb-10 animate-slide-up">
+          <div className="paper-card p-6 border-[#587955]/30">
             <VideoResult videoUrl={videoUrl} jobId={jobId} />
           </div>
         )}
 
-        {/* Error */}
+        {/* Error Notification */}
         {status === "failed" && errorMsg && (
-          <div
-            className="mb-10 p-5 rounded-2xl animate-slide-up"
-            style={{
-              backgroundColor: "rgba(239, 68, 68, 0.08)",
-              border: "1px solid rgba(239, 68, 68, 0.25)",
-            }}
-          >
-            <p className="text-sm font-medium mb-1" style={{ color: "#fca5a5" }}>
-              Generation Failed
-            </p>
-            <p className="text-sm" style={{ color: "#9ca3af" }}>
-              {errorMsg}
-            </p>
+          <div className="p-4 rounded-xl bg-[#fcf0ec] border border-[#f5d7ce] text-[#9e4328] space-y-1">
+            <div className="font-bold text-xs flex items-center gap-1.5">
+              <span>⚠️</span>
+              <span>Kompilasi Video Mengalami Kendala</span>
+            </div>
+            <p className="text-xs font-mono">{errorMsg}</p>
           </div>
         )}
 
-        {/* Pipeline progress */}
+        {/* Pipeline Progress */}
         <PipelineProgress
           progress={progress}
           currentMessage={currentMessage}
           status={status}
           logs={logs}
         />
-      </div>
-    </main>
+      </main>
+
+      {/* Clean Footer */}
+      <footer className="max-w-4xl mx-auto w-full text-center py-4 text-xs text-[#aba092] border-t border-[#e6dfd1]/60">
+        MicroDrama Studio &bull; Local Native Pipeline &bull; ID: {jobId}
+      </footer>
+    </div>
   );
 }

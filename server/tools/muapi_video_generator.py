@@ -1,26 +1,61 @@
 import asyncio
 import os
+from pathlib import Path
 from typing import Optional
 
 import httpx
-
-
-MUAPI_BASE = "https://api.muapi.ai/api/v1"
-POLL_INTERVAL = 3  # seconds
+from .omni_video_generator import OmniVideoGenerator
+from .snapgen_provider import SnapGenProvider
 
 
 class MuAPIVideoGenerator:
+    """Universal Video Generator: defaults to Google Omni Flash 1.1 (zero-cost),
+    with fallback or alternative to SnapGen.ai (AdFlx standard Veo 3.1).
+    """
+
     def __init__(self, api_key: Optional[str] = None):
-        self.api_key = api_key or os.environ["MUAPI_KEY"]
-        self.headers = {"x-api-key": self.api_key, "Content-Type": "application/json"}
+        self.api_key = api_key or os.environ.get("MUAPI_KEY", "")
+        self.snapgen_key = os.environ.get("SNAPGEN_API_KEY") or os.environ.get("GEMINIGEN_API_KEY", "")
+        self.omni_gen = OmniVideoGenerator()
+        self.snapgen = SnapGenProvider(api_key=self.snapgen_key)
 
     async def generate_video_from_image(
         self,
         prompt: str,
         image_url: str,
-        duration: int = 5,
-        aspect_ratio: str = "16:9",
+        duration: int = 10,
+        aspect_ratio: str = "9:16",
     ) -> str:
+        """Generate a video clip. Defaults to Google Omni Flash 1.1 vertical (9:16),
+        with SnapGen.ai (AdFlx standard) as the secondary / custom engine.
+        """
+        video_engine = os.environ.get("VIDEO_ENGINE", "google_omni_flash").lower()
+        if video_engine == "snapgen" and self.snapgen_key:
+            return await self.snapgen.generate_video(
+                prompt=prompt,
+                image_url=image_url,
+                duration=duration,
+                aspect_ratio=aspect_ratio or "9:16",
+            )
+
+        # Default to Google Omni Flash 1.1 ($0 Free Local)
+        try:
+            return await self.omni_gen.generate_video_from_image(
+                prompt=prompt,
+                image_url=image_url,
+                duration=duration,
+                aspect_ratio=aspect_ratio or "9:16",
+            )
+        except Exception as e:
+            if self.snapgen_key:
+                print(f"Omni Flash render error ({e}), switching to SnapGen.ai (AdFlx standard)...")
+                return await self.snapgen.generate_video(
+                    prompt=prompt,
+                    image_url=image_url,
+                    duration=duration,
+                    aspect_ratio=aspect_ratio or "9:16",
+                )
+            raise
         """Generate a cinematic video clip from an image + motion prompt.
 
         Primary: Seedance 2 VIP I2V — the highest quality Seedance model,

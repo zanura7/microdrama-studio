@@ -1,14 +1,59 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import IdeaForm from "../components/IdeaForm";
-import { Film, Zap, GitBranch, Layers } from "lucide-react";
+import SettingsModal from "../components/SettingsModal";
+import { Film, Zap, GitBranch, Layers, Settings, ExternalLink, ShieldCheck, CheckCircle2, Sun, Moon } from "lucide-react";
 
 export default function HomePage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [isDark, setIsDark] = useState(false);
+  const [statusInfo, setStatusInfo] = useState({
+    llm_model: "gh/gpt-4o",
+    video_engine: "Google Omni Flash 1.1",
+    flow_profile_exists: true,
+  });
+
+  const loadSettings = () => {
+    fetch("/api/settings")
+      .then((res) => res.json())
+      .then((data) => {
+        setStatusInfo({
+          llm_model: data.llm_model || "gh/gpt-4o",
+          video_engine: data.video_engine === "google_omni_flash" ? "Google Omni Flash 1.1" : data.video_engine,
+          flow_profile_exists: data.flow_profile_exists ?? true,
+        });
+      })
+      .catch(() => {});
+  };
+
+  useEffect(() => {
+    loadSettings();
+    const savedTheme = localStorage.getItem("microdrama_theme");
+    if (savedTheme === "dark") {
+      document.documentElement.classList.add("dark");
+      setIsDark(true);
+    } else {
+      document.documentElement.classList.remove("dark");
+      setIsDark(false);
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    if (isDark) {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("microdrama_theme", "light");
+      setIsDark(false);
+    } else {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("microdrama_theme", "dark");
+      setIsDark(true);
+    }
+  };
 
   const handleSubmit = async (formData) => {
     setIsSubmitting(true);
@@ -32,91 +77,130 @@ export default function HomePage() {
   };
 
   return (
-    <main className="min-h-screen" style={{ backgroundColor: "#0a0a0f" }}>
-      {/* Hero header */}
-      <div className="relative overflow-hidden">
-        {/* Background glow effects */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          aria-hidden="true"
-        >
-          <div
-            className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] rounded-full opacity-20"
-            style={{
-              background:
-                "radial-gradient(ellipse at center, #7c3aed 0%, transparent 70%)",
-              filter: "blur(60px)",
-            }}
-          />
+    <div className="min-h-screen py-8 px-4 sm:px-6 flex flex-col justify-between">
+      {/* Top Navigation Bar / Stationery Desk Header */}
+      <header className="max-w-4xl mx-auto w-full mb-8 flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-[#c25e40] text-white flex items-center justify-center font-bold text-lg shadow-sm">
+            MD
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-base font-bold text-[#2d2621]">MicroDrama Studio</h1>
+              <span className="paper-badge badge-terracotta">Notebook Edition</span>
+            </div>
+            <p className="text-xs text-[#7f7466]">Zero Cost AI Micro-Drama Orchestrator</p>
+          </div>
         </div>
 
-        <div className="relative max-w-5xl mx-auto px-6 pt-20 pb-16 text-center">
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium mb-6"
-            style={{ backgroundColor: "rgba(124, 58, 237, 0.15)", border: "1px solid rgba(124, 58, 237, 0.3)", color: "#a78bfa" }}>
-            <Zap size={12} />
-            Powered by MuAPI &amp; Claude AI
+        {/* Action Buttons & Engine Badges */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="hidden sm:flex items-center gap-2">
+            <span className="paper-badge badge-sage">
+              ● LLM: {statusInfo.llm_model}
+            </span>
+            <span className="paper-badge badge-honey">
+              Omni Flash 1.1 (9:16)
+            </span>
           </div>
 
-          {/* Title */}
-          <h1 className="text-6xl md:text-7xl font-black tracking-tight mb-6">
-            <span className="gradient-text">MicroDrama AI</span>
-          </h1>
-          <p className="text-xl md:text-2xl font-light mb-3" style={{ color: "#94a3b8" }}>
-            Agentic AI Video Generation
-          </p>
-          <p className="text-base max-w-2xl mx-auto mb-12" style={{ color: "#64748b" }}>
-            Type an idea. A multi-agent pipeline writes the script, designs the
-            storyboard, generates frames, and produces a complete cinematic
-            video — automatically.
+          <button
+            type="button"
+            onClick={() => setSettingsOpen(true)}
+            className="btn-paper py-2 px-3.5 text-xs flex items-center gap-1.5 cursor-pointer"
+          >
+            <ExternalLink size={14} className="text-[#c25e40]" />
+            <span>Login Google Flow</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSettingsOpen(true)}
+            className="btn-paper p-2 text-xs flex items-center justify-center cursor-pointer"
+            title="Pengaturan"
+          >
+            <Settings size={16} className="text-[#7f7466]" />
+          </button>
+
+          {/* Theme Toggle Button (Light Paper / Dark Journal) */}
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="btn-paper py-1.5 px-3 text-xs flex items-center gap-1.5 cursor-pointer"
+            title={isDark ? "Ganti ke Tema Kertas Terang" : "Ganti ke Tema Gelap (Jurnal Malam)"}
+          >
+            {isDark ? (
+              <>
+                <Sun size={15} className="text-[#e8a548]" />
+                <span className="font-medium text-xs">Terang</span>
+              </>
+            ) : (
+              <>
+                <Moon size={15} className="text-[#486683]" />
+                <span className="font-medium text-xs">Gelap</span>
+              </>
+            )}
+          </button>
+        </div>
+      </header>
+
+      {/* Main Notebook Sheet */}
+      <main className="max-w-4xl mx-auto w-full paper-sheet p-6 sm:p-10 mb-10">
+        {/* Notebook Title Area */}
+        <div className="mb-8 pb-6 border-b border-[#e6dfd1]">
+          <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#c25e40] mb-2 uppercase tracking-wider">
+            <span>📓</span>
+            <span>Buku Catatan Produksi Serial</span>
+          </div>
+          <h2 className="text-2xl sm:text-3xl font-bold text-[#2d2621] tracking-tight mb-2">
+            Generator Serial Microdrama AI
+          </h2>
+          <p className="text-sm text-[#7f7466] leading-relaxed max-w-2xl">
+            Tulis ide cerita atau naskah Anda. Sistem otomatis merancang skenario adegan, storyboard shot, konsistensi aktor, dan me-render klip video vertikal sinematik (9:16) siap posting.
           </p>
 
-          {/* Feature pills */}
-          <div className="flex flex-wrap justify-center gap-3 mb-16">
+          {/* Workflow Steps Indicator */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mt-6">
             {[
-              { icon: <Film size={14} />, label: "Screenwriter Agent" },
-              { icon: <GitBranch size={14} />, label: "Storyboard Artist" },
-              { icon: <Layers size={14} />, label: "Frame Generator" },
-              { icon: <Zap size={14} />, label: "Video Generator" },
-            ].map((f) => (
-              <div
-                key={f.label}
-                className="flex items-center gap-2 px-4 py-2 rounded-full text-sm"
-                style={{
-                  backgroundColor: "#12121a",
-                  border: "1px solid #22223a",
-                  color: "#94a3b8",
-                }}
-              >
-                <span style={{ color: "#7c3aed" }}>{f.icon}</span>
-                {f.label}
+              { icon: <Film size={14} />, label: "1. Screenwriter", desc: "Naskah AI" },
+              { icon: <GitBranch size={14} />, label: "2. Storyboard", desc: "Shot & Framing" },
+              { icon: <Layers size={14} />, label: "3. Karakter", desc: "Konsistensi Aktor" },
+              { icon: <Zap size={14} />, label: "4. Omni Flash", desc: "Render 9:16" },
+            ].map((step) => (
+              <div key={step.label} className="paper-card p-3">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-[#2d2621] mb-0.5">
+                  <span className="text-[#c25e40]">{step.icon}</span>
+                  <span>{step.label}</span>
+                </div>
+                <div className="text-[11px] text-[#7f7466]">{step.desc}</div>
               </div>
             ))}
           </div>
         </div>
-      </div>
 
-      {/* Form section */}
-      <div className="max-w-3xl mx-auto px-6 pb-24">
+        {/* Error notification if any */}
         {error && (
-          <div
-            className="mb-6 px-4 py-3 rounded-xl text-sm animate-fade-in"
-            style={{
-              backgroundColor: "rgba(239, 68, 68, 0.1)",
-              border: "1px solid rgba(239, 68, 68, 0.3)",
-              color: "#fca5a5",
-            }}
-          >
-            {error}
+          <div className="mb-6 p-4 rounded-xl text-xs font-medium bg-[#fcf0ec] border border-[#f5d7ce] text-[#9e4328] flex items-center gap-2">
+            <span>⚠️</span>
+            <span>{error}</span>
           </div>
         )}
-        <IdeaForm onSubmit={handleSubmit} isSubmitting={isSubmitting} />
-      </div>
 
-      {/* Footer */}
-      <footer className="text-center pb-8 text-sm" style={{ color: "#374151" }}>
-        MicroDrama AI &mdash; Built on MuAPI generative media infrastructure
+        {/* The Clean Form */}
+        <IdeaForm onSubmit={handleSubmit} isSubmitting={isSubmitting} />
+      </main>
+
+      {/* Clean Desk Footer */}
+      <footer className="max-w-4xl mx-auto w-full text-center py-6 text-xs text-[#aba092] border-t border-[#e6dfd1]/60">
+        MicroDrama Studio &bull; Local Native Engine &bull; Zero Cost 9Router &amp; Google Omni Flash 1.1
       </footer>
-    </main>
+
+      {/* Settings Modal */}
+      <SettingsModal
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        onSettingsUpdated={loadSettings}
+      />
+    </div>
   );
 }

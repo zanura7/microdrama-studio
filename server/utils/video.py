@@ -8,7 +8,14 @@ import httpx
 
 
 async def download_video(url: str, dest_path: str) -> str:
-    """Download a video from a URL to a local path. Returns the path."""
+    """Download a video from a URL or copy from local file path to dest_path. Returns the path."""
+    p = Path(url)
+    if p.exists() and p.is_file():
+        if str(p.resolve()) != str(Path(dest_path).resolve()):
+            import shutil
+            shutil.copy2(p, dest_path)
+        return dest_path
+
     async with httpx.AsyncClient(timeout=120, follow_redirects=True) as client:
         resp = await client.get(url)
         resp.raise_for_status()

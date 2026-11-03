@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  darkMode: "class",
   content: [
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
@@ -8,15 +9,20 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        background: "#0a0a0f",
-        surface: "#12121a",
-        "surface-2": "#1a1a26",
-        "surface-3": "#22223a",
-        accent: "#7c3aed",
+        background: "#080c15",
+        surface: "#0f172a",
+        "surface-2": "#1e293b",
+        "surface-3": "#334155",
+        cyan: {
+          400: "#22d3ee",
+          500: "#06b6d4",
+          600: "#0891b2",
+        },
+        accent: "#8b5cf6",
         "accent-light": "#a78bfa",
-        "accent-glow": "rgba(124, 58, 237, 0.3)",
-        muted: "#6b7280",
-        "muted-2": "#4b5563",
+        "accent-glow": "rgba(139, 92, 246, 0.35)",
+        muted: "#94a3b8",
+        "muted-2": "#64748b",
       },
       animation: {
         "pulse-slow": "pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite",

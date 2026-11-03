@@ -1,20 +1,148 @@
 <div align="center">
 
-<h1 align="center">MicroDrama AI</h1>
-<h3 align="center">Agentic AI Micro-Drama Video Generator</h3>
+<h1 align="center">MicroDrama Studio</h1>
+<h3 align="center">Zero Cost AI Agentic Micro-Drama Video Generator & Studio</h3>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/🐍Python-3.10+-00d9ff?style=for-the-badge&logo=python&logoColor=white&labelColor=1a1a2e">
-  <img src="https://img.shields.io/badge/⚡Next.js-14-ff6b6b?style=for-the-badge&logo=next.js&logoColor=white&labelColor=1a1a2e">
-  <img src="https://img.shields.io/badge/License-MIT-4ecdc4?style=for-the-badge&logo=opensourceinitiative&logoColor=white&labelColor=1a1a2e">
+  <img src="https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white">
+  <img src="https://img.shields.io/badge/Next.js-14-black?style=for-the-badge&logo=next.js&logoColor=white">
+  <img src="https://img.shields.io/badge/FastAPI-0.100+-009688?style=for-the-badge&logo=fastapi&logoColor=white">
+  <img src="https://img.shields.io/badge/MCP-Server%20Ready-7c3aed?style=for-the-badge&logo=anthropic&logoColor=white">
+  <img src="https://img.shields.io/badge/License-MIT-4ecdc4?style=for-the-badge">
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/MuAPI-Powered-7c3aed?style=for-the-badge&logoColor=white&labelColor=1a1a2e">
-  <img src="https://img.shields.io/badge/One_Key-Setup-FFC107?style=for-the-badge&logoColor=white&labelColor=1a1a2e">
+  <strong>Vertical 9:16 Cinematic Drama &bull; Storyboard Sheets 4-in-1 &bull; Auto-Fix Censorship Shield &bull; Multi-Platform Auto-Publish</strong>
 </p>
 
 </div>
+
+---
+
+## 🌟 What is MicroDrama Studio?
+
+**MicroDrama Studio** is an agentic, zero-cost AI orchestrator for generating vertical (9:16) micro-drama series tailored for TikTok, YouTube Shorts, and Instagram Reels.
+
+Unlike fragmented tools that require manual copy-pasting across 5 different websites, MicroDrama Studio automates the full production cycle:
+1. **Screenwriter Agent:** Formulates character arcs, 3-second viral hooks, and scene scripts based on tested drama formulas.
+2. **Storyboard Sheets Engine:** Uses the Flow Studio 4-in-1 paradigm (4 scenes in 1 image grid) — cutting credit costs by ~70% while guaranteeing **100% character and costume consistency**.
+3. **Auto-Fix Censorship Shield:** Automatically intercepts AI safety filter refusals and uses 9Router LLM to rewrite triggers into safe, cinematic equivalents without halting the queue.
+4. **Zero-Cost Local Video Engine:** Powered by Google Omni Flash 1.1 Playwright automation ($0 API cost) with SnapGen.ai (Veo 3.1 & Nano Banana Pro) as a secondary provider.
+5. **Zernio Auto-Publish:** Directly schedules and publishes finished vertical videos to TikTok, Reels, Shorts, and Facebook.
+6. **Model Context Protocol (MCP) Server:** Connects directly into **Claude Desktop** and **OpenAI Codex CLI** for conversational control.
+
+---
+
+## 🚀 Key Innovations
+
+### 1. ✦ Storyboard Sheets (4 Scenes, 1 Image)
+Generating scenes independently causes heavy character face and costume drift. MicroDrama Studio instructs image models to render a **2x2 sequential grid**, then slices it into 4 vertical 9:16 HD frames (720x1280) via Pillow:
+- **70% fewer generation calls & credits**
+- **Zero character drift** across the 4 keyframes
+- Cohesive lighting, color grading, and framing
+
+### 2. 🛡️ Auto-Fix Censorship Shield
+When intense dramatic moments (medical emergencies, thrillers, confrontation) trigger AI safety filters:
+- The system intercepts the rejection error.
+- 9Router LLM rewrites the prompt into compliant, atmospheric storytelling terms.
+- The pipeline retries instantly without crashing.
+
+### 3. 👑 Story Formula Skills
+Pre-built prompt skill modules optimized for short-form retention:
+- **`revenge_ceo`**: Menantu Tertindas & Balas Dendam CEO (Pacing cepat, hook penghinaan 0-3s, status reversal).
+- **`ugc_affiliate`**: TikTok / Shopee Affiliate UGC Drama (Relatable problem, natural product integration, soft-selling CTA).
+- **`urban_horror`**: Horor Urban Legend Indonesia (Atmospheric suspense, low-key lighting, twist).
+- **`office_romcom`**: Komedi Romantis & Cinta Lokasi (Witty banter, golden hour lighting, romantic tension).
+
+### 4. 🔌 Built-in FastMCP Server
+Control your entire microdrama production directly from Claude Desktop or Codex CLI:
+- `create_microdrama`: Start generating complete drama series.
+- `get_drama_status`: Monitor live rendering progress and retrieve final MP4 video links.
+- `list_story_skills`: Inspect available viral story formulas.
+- `generate_viral_caption`: Auto-generate clickbait hooks and hashtags.
+- `publish_drama_to_social`: Auto-publish to social channels via Zernio API.
+
+---
+
+## 🎨 Dual-Theme Design: Notebook & Dark Kraft Journal
+
+MicroDrama Studio features a clean, calming UI:
+- **Light Paper Sheet:** Oat paper background (`#fbf9f5`) with subtle 32px notebook ruled lines, ivory paper cards, and terracotta accents.
+- **Dark Kraft Journal:** Deep warm espresso/charcoal theme (`#161412` / `#1f1c19`) with no harsh white elements.
+- Instant theme toggle with anti-flicker reload support.
+
+---
+
+## 🛠️ Quick Start
+
+### 1. Clone & Setup
+
+```bash
+git clone https://github.com/zanura7/microdrama-studio.git
+cd microdrama-studio
+```
+
+### 2. Server Setup (Python 3.12)
+
+```bash
+cd server
+pip install -r requirements.txt
+
+# Or run the Windows batch launcher
+run_server.bat
+```
+
+Backend runs at `http://127.0.0.1:8000`.
+
+### 3. Client Setup (Next.js 14)
+
+```bash
+cd client
+npm install
+npm run dev
+
+# Or run the Windows batch launcher
+run_client.bat
+```
+
+Frontend runs at `http://localhost:3000`.
+
+### 4. Or Start Everything Together
+
+Double-click `start_all.bat` to launch both backend and frontend concurrently!
+
+---
+
+## 🤖 MCP Setup (Claude Desktop & Codex CLI)
+
+### Claude Desktop
+Add the following to your `claude_desktop_config.json`:
+
+```json
+"mcpServers": {
+  "microdrama-studio": {
+    "command": "python",
+    "args": [
+      "D:\\microdrama-app\\mcp_server.py"
+    ]
+  }
+}
+```
+
+### OpenAI Codex CLI
+Add to `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.microdrama-studio]
+command = "python"
+args = ["D:\\microdrama-app\\mcp_server.py"]
+```
+
+---
+
+## 📄 License
+
+MIT License. Open source and built for high-leverage solo creators and AI founders.
 
 ---
 

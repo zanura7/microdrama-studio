@@ -25,6 +25,8 @@ class Idea2VideoPipeline:
         style: str,
         job_id: str,
         progress_callback: ProgressCallback,
+        skill_rules: str = "",
+        use_storyboard_sheets: bool = True,
     ) -> str:
         """
         Full pipeline: idea → story → scenes → videos → final concatenated video.
@@ -37,7 +39,7 @@ class Idea2VideoPipeline:
         await progress_callback(
             "screenwriter", "Developing story...", 10
         )
-        story = await self.screenwriter.develop_story(idea, user_requirement)
+        story = await self.screenwriter.develop_story(idea, user_requirement, skill_rules=skill_rules)
 
         # Stage 2: Extract characters from story
         await progress_callback(
@@ -50,7 +52,7 @@ class Idea2VideoPipeline:
             "screenwriter", "Writing scene scripts...", 25
         )
         scene_scripts = await self.screenwriter.write_script_based_on_story(
-            story, user_requirement
+            story, user_requirement, skill_rules=skill_rules
         )
 
         if not scene_scripts:
@@ -78,6 +80,7 @@ class Idea2VideoPipeline:
                     scene_idx=scene_idx,
                     base_progress=base_progress,
                     progress_range=progress_per_scene,
+                    use_storyboard_sheets=use_storyboard_sheets,
                 )
                 scene_video_paths.append(scene_video)
             except Exception as e:

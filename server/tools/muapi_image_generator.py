@@ -3,6 +3,7 @@ import os
 from typing import Optional
 
 import httpx
+from .snapgen_provider import SnapGenProvider
 
 
 MUAPI_BASE = "https://api.muapi.ai/api/v1"
@@ -10,18 +11,24 @@ POLL_INTERVAL = 3  # seconds
 
 
 class MuAPIImageGenerator:
+    """Image generator supporting SnapGen.ai (AdFlx standard) as primary engine,
+    with fallback to MuAPI Seedream/Nano Banana if configured.
+    """
+
     def __init__(self, api_key: Optional[str] = None):
-        self.api_key = api_key or os.environ["MUAPI_KEY"]
+        self.api_key = api_key or os.environ.get("MUAPI_KEY", "")
+        self.snapgen_key = os.environ.get("SNAPGEN_API_KEY") or os.environ.get("GEMINIGEN_API_KEY", "")
+        self.snapgen = SnapGenProvider(api_key=self.snapgen_key)
         self.headers = {"x-api-key": self.api_key, "Content-Type": "application/json"}
 
     async def generate_image(self, prompt: str, aspect_ratio: str = "1:1") -> str:
         """Generate a photorealistic character portrait.
-
-        Uses Seedream v4.5 (high quality) — purpose-built for photorealistic
-        human portraits with accurate skin tones, facial detail, and dramatic
-        lighting. Superior to flux-dev for micro-drama character sheets.
-        Returns URL of generated image.
+        Uses SnapGen.ai (AdFlx standard) if SNAPGEN_API_KEY is configured,
+        or falls back to Seedream v4.5.
         """
+        if self.snapgen_key:
+            return await self.snapgen.generate_character_portrait(prompt, aspect_ratio=aspect_ratio)
+
         async with httpx.AsyncClient(timeout=60) as client:
             resp = await client.post(
                 f"{MUAPI_BASE}/bytedance-seedream-v4.5",
@@ -46,15 +53,19 @@ class MuAPIImageGenerator:
         self,
         prompt: str,
         reference_url: str,
-        aspect_ratio: str = "16:9",
+        aspect_ratio: str = "9:16",
     ) -> str:
         """Generate a scene frame using a character reference image.
-
-        Uses Nano Banana 2 Edit (Google Imagen 4) — excellent at preserving
-        character appearance from a reference while composing a new scene,
-        giving strong visual consistency across shots.
-        Returns URL of generated image.
+        Uses SnapGen.ai (AdFlx standard) if SNAPGEN_API_KEY is configured,
+        or falls back to Nano Banana 2 Edit.
         """
+        if self.snapgen_key:
+            return await self.snapgen.generate_scene_frame(
+                prompt=prompt,
+                reference_url=reference_url,
+                aspect_ratio=aspect_ratio or "9:16",
+            )
+
         async with httpx.AsyncClient(timeout=60) as client:
             resp = await client.post(
                 f"{MUAPI_BASE}/nano-banana-2-edit",
