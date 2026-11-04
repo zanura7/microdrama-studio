@@ -21,7 +21,7 @@ Implements:
 """
 
 import re
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 CANONICAL_NEGATIVE_PROMPT = (
     "blurry, low resolution, soft focus, watermark, text overlay, subtitles, logo, "
@@ -97,6 +97,61 @@ class CinematicPromptEngine:
         return CAMERA_LENS_PRESETS.get(genre, CAMERA_LENS_PRESETS["vertical_drama"])
 
     @staticmethod
+    def generate_atmosphere_lock(genre_camera: str = "vertical_drama", style_mood: str = "") -> str:
+        """
+        Stage 3 Atmosphere Lock from project-planner.md.
+        Generates a single, verbatim locked string for camera, lens, lighting, and color grading.
+        This string MUST be copied identically to every shot in an episode to prevent color-drift across cuts.
+        """
+        camera_spec = CinematicPromptEngine.get_camera_preset(genre_camera)
+        mood_clean = CinematicPromptEngine.sanitize_slop_words(style_mood) if style_mood else ""
+        mood_clause = f"Mood & Lighting: {mood_clean}. " if mood_clean else ""
+        return (
+            f"Atmosphere Lock: {camera_spec} {mood_clause}"
+            "Consistent motivated practical light, locked color grading, natural skin texture with subtle film grain. "
+            "Zero post-processing filter variation across cuts."
+        )
+
+    @staticmethod
+    def validate_action_budget(motion_desc: str, max_actions: int = 2) -> Tuple[str, bool]:
+        """
+        Action Budget Rule (from ai-shortfilm-prompts cases.md):
+        Video clips (3-10s) fail and deform when overloaded with >1-2 micro-actions.
+        Detects runaway verb chaining (e.g. 'walks in, then sits down, opens folder, and starts weeping')
+        and trims to primary action + secondary reaction to prevent melting/morphing AI geometry.
+        Returns (sanitized_motion_desc, was_trimmed).
+        """
+        clean_motion = CinematicPromptEngine.sanitize_slop_words(motion_desc)
+        
+        # Split on common action-chaining transition markers
+        chain_markers = [
+            r"\band then\b",
+            r"\bafter which\b",
+            r"\bfollowed by\b",
+            r"\bwhile simultaneously\b",
+            r"\bbefore quickly\b",
+            r"\band immediately\b",
+            r"\bthen suddenly\b",
+        ]
+        
+        parts = [clean_motion]
+        for marker in chain_markers:
+            new_parts = []
+            for p in parts:
+                splits = re.split(marker, p, flags=re.IGNORECASE)
+                new_parts.extend([s.strip() for s in splits if s.strip()])
+            parts = new_parts
+            
+        if len(parts) > max_actions:
+            # Overloaded action budget detected! Truncate to max_actions and add clean hold/focus
+            trimmed_action = ". ".join(parts[:max_actions]).rstrip(".")
+            trimmed_action += " while maintaining focused eye-line."
+            print(f"[CinematicPromptEngine] Action Budget Exceeded ({len(parts)} actions). Trimmed: '{clean_motion[:50]}...' -> '{trimmed_action[:50]}...'")
+            return trimmed_action, True
+
+        return clean_motion, False
+
+    @staticmethod
     def ensure_imperfections(description: str, min_count: int = 2) -> str:
         """Ensure description has at least min_count imperfection anchors."""
         desc_lower = description.lower()
@@ -123,19 +178,23 @@ class CinematicPromptEngine:
         character_desc: str = "",
         genre_camera: str = "vertical_drama",
         aspect_ratio: str = "9:16",
+        atmosphere_lock: Optional[str] = None,
     ) -> str:
         """
         Builds a Stage 1 - Stage 3 visual prompt for T2I / Character Reference generation.
-        Strictly applies Mx-Shell 5-Stage discipline.
+        Strictly applies Mx-Shell 5-Stage discipline + Atmosphere Lock across cuts.
         """
         clean_scene = CinematicPromptEngine.sanitize_slop_words(scene_visual)
         clean_scene = CinematicPromptEngine.ensure_imperfections(clean_scene, min_count=2)
 
-        camera_spec = CinematicPromptEngine.get_camera_preset(genre_camera)
+        if atmosphere_lock:
+            quality_block = atmosphere_lock
+        else:
+            camera_spec = CinematicPromptEngine.get_camera_preset(genre_camera)
+            quality_block = f"Camera & Lighting: {camera_spec} Motivated practical light, natural skin texture, subtle film grain."
 
         core_theme = "Core theme: vertical micro-drama | dramatic tension | live-action performance | grounded realism | no game-CG feel."
         char_block = f"Character reference: {character_desc}. Features and face shape 100% preserved. No beautification." if character_desc else ""
-        quality_block = f"Camera & Lighting: {camera_spec} Motivated practical light, natural skin texture, subtle film grain."
 
         parts = [core_theme, clean_scene]
         if char_block:
@@ -149,12 +208,16 @@ class CinematicPromptEngine:
         motion_desc: str,
         audio_desc: str = "",
         force_breath_float: bool = True,
+        enforce_action_budget: bool = True,
     ) -> str:
         """
         Builds a Stage 4 - Stage 5 motion prompt for video generation (Omni Flash / Veo / Kling).
-        Enforces breath-like handheld float and production diegetic audio.
+        Enforces Action Budget (max 2 micro-actions), breath-like handheld float, and production diegetic audio.
         """
-        clean_motion = CinematicPromptEngine.sanitize_slop_words(motion_desc)
+        if enforce_action_budget:
+            clean_motion, _ = CinematicPromptEngine.validate_action_budget(motion_desc, max_actions=2)
+        else:
+            clean_motion = CinematicPromptEngine.sanitize_slop_words(motion_desc)
 
         # Enforce canonical breath float if not present
         if force_breath_float and "breath-like" not in clean_motion.lower():

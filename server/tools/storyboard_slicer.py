@@ -1,7 +1,12 @@
 import os
 from pathlib import Path
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Optional
 from PIL import Image
+from tools.cinematic_prompt_engine import (
+    CinematicPromptEngine,
+    CANONICAL_BREATH_FLOAT,
+    CANONICAL_SOUND_RULE,
+)
 
 
 class StoryboardSlicer:
@@ -18,11 +23,13 @@ class StoryboardSlicer:
     def build_sheet_prompt(
         shots: List[Dict[str, Any]],
         characters: List[Any],
-        style: str = "Cinematic",
+        style: str = "vertical_drama",
+        atmosphere_lock: Optional[str] = None,
     ) -> str:
         """
         Builds a comprehensive prompt directing image models (SnapGen / Google Flow / Midjourney)
         to render a 2x2 quadrant storyboard sheet with identical characters and cohesive lighting.
+        Enforces Atmosphere Lock & anti-slop rules.
         """
         char_desc = ""
         if characters:
@@ -30,6 +37,7 @@ class StoryboardSlicer:
                 f"{getattr(c, 'name', '')}: {getattr(c, 'static_features', '')}, wearing {getattr(c, 'dynamic_features', '')}."
                 for c in characters if getattr(c, 'is_visible', True)
             ])
+        char_desc = CinematicPromptEngine.sanitize_slop_words(char_desc)
 
         panel_labels = [
             "Top-Left Panel (Scene 1)",
@@ -41,18 +49,24 @@ class StoryboardSlicer:
         panels_text = []
         for idx, shot in enumerate(shots[:4]):
             label = panel_labels[idx] if idx < len(panel_labels) else f"Panel {idx + 1}"
-            desc = shot.get("visual_desc", "") or shot.get("prompt", "")
-            panels_text.append(f"[{label}]: {desc}")
+            raw_desc = shot.get("visual_desc", "") or shot.get("prompt", "")
+            clean_desc = CinematicPromptEngine.sanitize_slop_words(raw_desc)
+            panels_text.append(f"[{label}]: {clean_desc}")
 
         joined_panels = "\n".join(panels_text)
 
+        if not atmosphere_lock:
+            atmosphere_lock = CinematicPromptEngine.generate_atmosphere_lock(
+                genre_camera="vertical_drama", style_mood=style
+            )
+
         prompt = (
-            f"A clean 2x2 grid cinematic storyboard sheet displaying 4 sequential story scenes. "
-            f"Style: {style}, highly detailed 8k photography, cinematic movie lighting.\n"
-            f"CHARACTER CONTINUITY RULE: The characters ({char_desc}) MUST look identical with exact same face, hair, and clothing in all 4 panels.\n\n"
-            f"Panels layout:\n"
+            "A clean 2x2 grid live-action storyboard sheet displaying 4 sequential story scenes. "
+            f"{atmosphere_lock}\n"
+            f"CHARACTER CONTINUITY RULE: Characters ({char_desc}) MUST look 100% identical with exact same face, hair, and clothing in all 4 panels. Features 100% preserved, no beautification.\n\n"
+            "Panels layout:\n"
             f"{joined_panels}\n\n"
-            f"Crisp dividing borders between the 4 quadrants, consistent color grading, photorealistic vertical film compositions."
+            "Crisp dividing borders between the 4 quadrants, consistent color grading, photorealistic vertical film compositions."
         )
         return prompt
 

@@ -93,7 +93,9 @@ class StoryboardArtist:
             "- Rule 4: Always include 'Sound: No score. Production audio only.' in audio_desc.\n"
             "- Rule 5: Describe at least 2 imperfection anchors per shot (fabric creases, tired eyes, skin blemish, flickering desk lamp, dust motes).\n"
             "- Rule 6: Restrained ending. No explosion, no blinding light, no melodramatic overacting.\n"
-            "- Rule 7: No copyrighted IP names.\n\n"
+            "- Rule 7: No copyrighted IP names.\n"
+            "- Rule 8 (ACTION BUDGET): Max 1-2 micro-actions per shot. NEVER overload a single 5s clip with 3+ sequential actions (entering, sitting, crying) — this causes AI morphing and melting deformation.\n"
+            "- Rule 9 (CONTINUITY RHYME): Maintain directional logic. If character/camera moves frame-right at shot exit, next shot must enter or match consistently.\n\n"
             "Respond ONLY with a valid JSON object matching the requested schema. No markdown wrapping."
         )
 
@@ -128,7 +130,8 @@ Rules:
 - Create 3-4 shots per scene.
 - Shot 0 must be an explosive cold-open hook (0-2s).
 - Shot 1+ should be shot-reverse-shot confrontation with rising psychological tension.
-- Final shot must be an abrupt, cliffhanger cut."""
+- Final shot must be an abrupt, cliffhanger cut.
+- Action Budget: Limit each shot to 1-2 focused micro-actions."""
 
         raw = await self.llm.complete(
             prompt, system_prompt=system_prompt, timeout=120, fallback=_FALLBACK_STORYBOARD
@@ -156,6 +159,9 @@ Rules:
             v_desc = CinematicPromptEngine.ensure_imperfections(v_desc, min_count=2)
 
             m_desc = s.get("motion_desc", "")
+            # Enforce Action Budget (max 2 micro-actions per shot)
+            m_desc, _ = CinematicPromptEngine.validate_action_budget(m_desc, max_actions=2)
+
             if "breath-like" not in m_desc.lower():
                 m_desc = m_desc.rstrip(".") + f". {CANONICAL_BREATH_FLOAT}"
 

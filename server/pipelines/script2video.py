@@ -87,6 +87,12 @@ class Script2VideoPipeline:
             ShotDescription(**s.model_dump()) for s in shots_brief
         ]
 
+        # Stage 3 Atmosphere Lock: Identical camera, lens, lighting, and color grading across all shots in this episode
+        episode_atmosphere_lock = CinematicPromptEngine.generate_atmosphere_lock(
+            genre_camera="vertical_drama",
+            style_mood=style,
+        )
+
         # Step 3: Generate first frames (Storyboard Sheets 4-in-1 or Sequential Fallback)
         if use_storyboard_sheets and len(shots) >= 2:
             await progress_callback(
@@ -103,15 +109,16 @@ class Script2VideoPipeline:
                     scene_idx=scene_idx,
                     progress_callback=progress_callback,
                     base_progress=base_progress + int(progress_range * 0.25),
+                    atmosphere_lock=episode_atmosphere_lock,
                 )
             except Exception as e:
                 print(f"[StoryboardSlicer] Sheet processing error ({e}), falling back to single frame T2I...")
                 await self._fallback_single_frames(
-                    shots, characters, character_portrait_urls, style, progress_callback, base_progress, progress_range, scene_idx
+                    shots, characters, character_portrait_urls, style, progress_callback, base_progress, progress_range, scene_idx, atmosphere_lock=episode_atmosphere_lock
                 )
         else:
             await self._fallback_single_frames(
-                shots, characters, character_portrait_urls, style, progress_callback, base_progress, progress_range, scene_idx
+                shots, characters, character_portrait_urls, style, progress_callback, base_progress, progress_range, scene_idx, atmosphere_lock=episode_atmosphere_lock
             )
 
         # Step 4: Generate videos sequentially (Concurrency = 1, Anti-Ban Throttling & Auto-Retry)
@@ -175,13 +182,17 @@ class Script2VideoPipeline:
         scene_idx: int,
         progress_callback: ProgressCallback,
         base_progress: int,
+        atmosphere_lock: Optional[str] = None,
     ):
         """Processes shots in groups of 4 using 2x2 Storyboard Sheets with Auto-Fix."""
         chunk_size = 4
         for chunk_idx in range(0, len(shots), chunk_size):
             batch_shots = shots[chunk_idx : chunk_idx + chunk_size]
             prompt = StoryboardSlicer.build_sheet_prompt(
-                [s.model_dump() for s in batch_shots], characters, style=style
+                [s.model_dump() for s in batch_shots],
+                characters,
+                style=style,
+                atmosphere_lock=atmosphere_lock,
             )
 
             # Generate sheet with Auto-Fix support
@@ -230,6 +241,7 @@ class Script2VideoPipeline:
         base_progress: int,
         progress_range: int,
         scene_idx: int,
+        atmosphere_lock: Optional[str] = None,
     ):
         """Fallback to individual shot frame generation."""
         frame_progress_step = int(progress_range * 0.35 / max(len(shots), 1))
@@ -240,7 +252,7 @@ class Script2VideoPipeline:
                 base_progress + int(progress_range * 0.20) + i * frame_progress_step,
             )
             frame_url = await self._generate_first_frame(
-                shot, characters, character_portrait_urls, style
+                shot, characters, character_portrait_urls, style, atmosphere_lock=atmosphere_lock
             )
             shot.first_frame_url = frame_url
 
@@ -268,8 +280,9 @@ class Script2VideoPipeline:
         characters: List[CharacterInScene],
         portrait_urls: dict,
         style: str,
+        atmosphere_lock: Optional[str] = None,
     ) -> str:
-        """Generate first frame for a shot using the 5-stage prompt standard."""
+        """Generate first frame for a shot using the 5-stage prompt standard and Atmosphere Lock."""
         mentioned_chars = [
             c for c in characters if c.name.lower() in shot.visual_desc.lower()
         ]
@@ -287,6 +300,7 @@ class Script2VideoPipeline:
             character_desc=char_desc,
             genre_camera="vertical_drama",
             aspect_ratio="9:16",
+            atmosphere_lock=atmosphere_lock,
         )
 
         try:
