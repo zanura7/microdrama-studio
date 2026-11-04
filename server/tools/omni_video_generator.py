@@ -18,6 +18,12 @@ except Exception as e:
     HAS_FLOW_ENGINE = False
     print(f"[OmniVideoGenerator] Warning: Could not import flowvideo ({e})")
 
+from tools.cinematic_prompt_engine import (
+    CinematicPromptEngine,
+    CANONICAL_BREATH_FLOAT,
+    CANONICAL_NEGATIVE_PROMPT,
+)
+
 
 class OmniVideoGenerator:
     """Google Omni Flash 1.1 Video Generator for Microdrama series.
@@ -50,12 +56,17 @@ class OmniVideoGenerator:
         # 1. Ensure local reference image
         ref_image_path = await self._resolve_local_image(image_url)
 
-        # 2. Run FlowTwoLayerGenerator in threadpool to keep async loop unblocked
+        # 2. Sanitize prompt & enforce Mx-Shell breath-like camera float
+        enhanced_prompt = CinematicPromptEngine.sanitize_slop_words(prompt)
+        if "breath-like" not in enhanced_prompt.lower():
+            enhanced_prompt = f"{enhanced_prompt.rstrip('.')}. {CANONICAL_BREATH_FLOAT}"
+
+        # 3. Run FlowTwoLayerGenerator in threadpool to keep async loop unblocked
         loop = asyncio.get_running_loop()
         final_video_path = await loop.run_in_executor(
             None,
             self._execute_flow_render,
-            prompt,
+            enhanced_prompt,
             ref_image_path,
             aspect_ratio,
             output_path,

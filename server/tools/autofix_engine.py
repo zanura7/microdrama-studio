@@ -1,6 +1,11 @@
 import re
 from typing import Optional, Tuple
 from tools.muapi_llm import MuAPILLM
+from tools.cinematic_prompt_engine import (
+    CinematicPromptEngine,
+    CANONICAL_BREATH_FLOAT,
+    CANONICAL_SOUND_RULE,
+)
 
 REFUSAL_PATTERNS = [
     r"safety\s*(?:system|policy|filter|guidelines)",
@@ -71,11 +76,18 @@ Please rewrite this prompt so it passes all safety and moderation filters while 
                 fallback=self._rule_based_sanitize(original_prompt),
             )
             clean_result = repaired.strip().strip('"').strip("'")
+            clean_result = CinematicPromptEngine.sanitize_slop_words(clean_result)
+            if "video" in media_type.lower() and "breath-like" not in clean_result.lower():
+                clean_result = f"{clean_result.rstrip('.')}. {CANONICAL_BREATH_FLOAT}"
             print(f"[AutoFix] Successfully repaired prompt:\n  Original: {original_prompt[:60]}...\n  Repaired: {clean_result[:60]}...")
             return clean_result
         except Exception as e:
             print(f"[AutoFix] LLM repair failed ({e}), using rule-based sanitizer.")
-            return self._rule_based_sanitize(original_prompt)
+            clean_fallback = self._rule_based_sanitize(original_prompt)
+            clean_fallback = CinematicPromptEngine.sanitize_slop_words(clean_fallback)
+            if "video" in media_type.lower() and "breath-like" not in clean_fallback.lower():
+                clean_fallback = f"{clean_fallback.rstrip('.')}. {CANONICAL_BREATH_FLOAT}"
+            return clean_fallback
 
     def _rule_based_sanitize(self, prompt: str) -> str:
         """Fallback rule-based keyword sanitization."""

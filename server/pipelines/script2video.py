@@ -13,6 +13,11 @@ from tools.muapi_video_generator import MuAPIVideoGenerator
 from tools.muapi_uploader import upload_image_from_url
 from tools.storyboard_slicer import StoryboardSlicer
 from tools.autofix_engine import AutoFixEngine
+from tools.cinematic_prompt_engine import (
+    CinematicPromptEngine,
+    CANONICAL_BREATH_FLOAT,
+    CANONICAL_SOUND_RULE,
+)
 from utils.video import concatenate_videos, download_video, create_still_video
 
 
@@ -240,14 +245,14 @@ class Script2VideoPipeline:
             shot.first_frame_url = frame_url
 
     async def _generate_portrait(self, character: CharacterInScene, style: str) -> str:
-        """Generate a character portrait image with Auto-Fix."""
+        """Generate a character portrait image using real lens specs and imperfection retention."""
+        clean_static = CinematicPromptEngine.sanitize_slop_words(character.static_features)
+        clean_dynamic = CinematicPromptEngine.sanitize_slop_words(character.dynamic_features)
         prompt = (
-            f"Professional portrait photo of {character.name}. "
-            f"{character.static_features}. "
-            f"Wearing {character.dynamic_features}. "
-            f"Style: {style}. "
-            "High quality, detailed face, neutral background, studio lighting, "
-            "character reference sheet, full face visible."
+            f"Reference character portrait photo of {character.name}. "
+            f"{clean_static}. Wearing: {clean_dynamic}. "
+            "Shot on Canon EF 85mm f/1.2 lens, neutral background, motivated edge lighting. "
+            "Natural skin texture with subtle imperfections preserved, no beautification, full face visible, no game-CG feel."
         )
         try:
             return await self.image_gen.generate_image(prompt, aspect_ratio="2:3")
@@ -264,7 +269,7 @@ class Script2VideoPipeline:
         portrait_urls: dict,
         style: str,
     ) -> str:
-        """Generate the first frame for a shot, using character references if available."""
+        """Generate first frame for a shot using the 5-stage prompt standard."""
         mentioned_chars = [
             c for c in characters if c.name.lower() in shot.visual_desc.lower()
         ]
@@ -277,11 +282,11 @@ class Script2VideoPipeline:
         if mentioned_chars:
             char_desc = " ".join([f"{c.name} ({c.dynamic_features})" for c in mentioned_chars])
 
-        full_prompt = (
-            f"{shot.visual_desc}. "
-            f"{char_desc}. "
-            f"Style: {style}. "
-            "Cinematic composition, 9:16 vertical ratio, high quality, detailed."
+        full_prompt = CinematicPromptEngine.build_visual_prompt(
+            scene_visual=shot.visual_desc,
+            character_desc=char_desc,
+            genre_camera="vertical_drama",
+            aspect_ratio="9:16",
         )
 
         try:
@@ -303,11 +308,15 @@ class Script2VideoPipeline:
     async def _generate_shot_video(
         self, shot: ShotDescription, shot_idx: int, working_dir: str
     ) -> str:
-        """Generate a video clip for a shot. Returns local file path."""
+        """Generate a video clip for a shot with breath-like float and sound rules. Returns local file path."""
         if not shot.first_frame_url:
             raise ValueError(f"Shot {shot_idx} has no first_frame_url")
 
-        video_prompt = f"{shot.motion_desc}. {shot.audio_desc}"
+        video_prompt = CinematicPromptEngine.build_motion_prompt(
+            motion_desc=shot.motion_desc,
+            audio_desc=shot.audio_desc,
+            force_breath_float=True,
+        )
         frame_url = shot.first_frame_url
 
         try:
