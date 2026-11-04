@@ -1,0 +1,24 @@
+{
+  "name": "microdrama-studio-desktop",
+  "version": "1.0.0",
+  "description": "High-Performance Solid.js Desktop UI for Microdrama Studio",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "serve": "vite preview",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "solid-js": "^1.9.3",
+    "lucide-solid": "^0.460.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.15",
+    "vite": "^6.0.1",
+    "vite-plugin-solid": "^2.11.0"
+  }
+}
