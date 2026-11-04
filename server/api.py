@@ -642,6 +642,24 @@ async def clear_batch():
     return {"status": "cleared", "removed_count": removed_count}
 
 
+from tools.session_manager import launch_flow_login_window, check_flow_session_status
+
+
+@app.get("/api/auth/flow/status")
+async def get_flow_status(account: str = "default"):
+    """Check if Google Flow session exists for the given account."""
+    return check_flow_session_status(account)
+
+
+@app.post("/api/auth/flow/login")
+async def trigger_flow_login(account: str = "default"):
+    """Launch in-app Chrome login window for Google Flow (Cross-platform)."""
+    res = launch_flow_login_window(account)
+    if not res.get("success"):
+        raise HTTPException(status_code=500, detail=res.get("error"))
+    return res
+
+
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------

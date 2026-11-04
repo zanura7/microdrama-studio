@@ -6,17 +6,22 @@ import urllib.request
 from pathlib import Path
 from typing import Optional
 
-# Dynamically link flow-video-generator engine
-FLOW_ENGINE_PATH = Path(r"C:\Users\HP\flow-video-generator")
-if FLOW_ENGINE_PATH.exists() and str(FLOW_ENGINE_PATH) not in sys.path:
-    sys.path.insert(0, str(FLOW_ENGINE_PATH))
-
+# Internal Decoupled Engine
 try:
-    from flowvideo import flow, flow_two_layer, flowaccounts
+    from engines.flow_engine import flow, flow_two_layer
+    from engines.flow_engine.paths import get_flow_profile_dir, get_app_data_dir
     HAS_FLOW_ENGINE = True
-except Exception as e:
-    HAS_FLOW_ENGINE = False
-    print(f"[OmniVideoGenerator] Warning: Could not import flowvideo ({e})")
+except Exception as e_internal:
+    # Optional fallback for local dev PC
+    FLOW_ENGINE_PATH = Path(r"C:\Users\HP\flow-video-generator")
+    if FLOW_ENGINE_PATH.exists() and str(FLOW_ENGINE_PATH) not in sys.path:
+        sys.path.insert(0, str(FLOW_ENGINE_PATH))
+    try:
+        from flowvideo import flow, flow_two_layer
+        HAS_FLOW_ENGINE = True
+    except Exception as e_ext:
+        HAS_FLOW_ENGINE = False
+        print(f"[OmniVideoGenerator] Warning: Could not import flow engine ({e_internal} / {e_ext})")
 
 from tools.cinematic_prompt_engine import (
     CinematicPromptEngine,
@@ -27,17 +32,22 @@ from tools.cinematic_prompt_engine import (
 
 class OmniVideoGenerator:
     """Google Omni Flash 1.1 Video Generator for Microdrama series.
-    Uses Pak Adi's local Google Flow automation engine (9:16 portrait, 10s, 720p).
+    Decoupled & cross-platform ready (Windows & macOS).
     Zero API cost, leverages authenticated Google Flow session.
     """
 
     def __init__(self, account_name: str = "auto", profile_path: Optional[str] = None):
         self.account_name = account_name
-        self.profile_path = Path(
-            profile_path
-            or os.environ.get("FLOW_PROFILE")
-            or Path.home() / ".google-flow-creator" / "browser-profile"
-        )
+        if profile_path:
+            self.profile_path = Path(profile_path)
+        elif os.environ.get("FLOW_PROFILE"):
+            self.profile_path = Path(os.environ["FLOW_PROFILE"])
+        else:
+            try:
+                from engines.flow_engine.paths import get_flow_profile_dir
+                self.profile_path = get_flow_profile_dir(account_name if account_name != "auto" else "default")
+            except Exception:
+                self.profile_path = Path.home() / ".google-flow-creator" / "browser-profile"
 
     async def generate_video_from_image(
         self,
