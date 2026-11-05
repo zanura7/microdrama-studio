@@ -720,11 +720,11 @@ def _start_generation(pg, log=print, on_submit=None, on_rpc_request=None,
         if agentic:
             pg.wait_for_timeout(2500)
             return
-        for _ in range(12):
+        for _ in range(25):
             pg.wait_for_timeout(2500)
             body = pg.evaluate("document.body.innerText")
             body_str = "" if body is None or not isinstance(body, (str, bytes)) else str(body)
-            if is_generating(body_str):
+            if is_generating(body_str) or re.search(r"Generating|Creating|Sedang membuat|Processing", body_str, re.I):
                 if on_rpc_request:
                     pg.remove_listener('request', capture)
                 return

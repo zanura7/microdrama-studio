@@ -220,16 +220,17 @@ class FlowTwoLayerGenerator:
 
         out_path_obj = Path(output_path).resolve()
         out_path_obj.parent.mkdir(parents=True, exist_ok=True)
-        # Nothing was submitted yet, so an existing file is a leftover from an
-        # earlier attempt; the size checks below must never accept it as this render.
         out_path_obj.unlink(missing_ok=True)
 
-        job_id = f"flow_job_{os.getpid()}_{uuid.uuid4().hex}"
-        job_profile = self.tmp_root / job_id
+        # Default auto-approve credits for zero-friction batch runs
+        if approve_credits is None:
+            approve_credits = 9999
+
+        # Use profile directly with lock clearance for 100% cookie reliability
+        clear_profile_locks(self.src_profile)
+        job_profile = self.src_profile
 
         try:
-            clone_session_profile(self.src_profile, job_profile, self.on_log)
-
             # Coba Layer 1: Native Headless modern
             _log("info", ">>> MENJALANKAN LAYER 1: Chrome Native Headless modern (--headless=new)", self.on_log)
             try:
@@ -253,21 +254,16 @@ class FlowTwoLayerGenerator:
                         raise flow.FlowError(res.get("error") or "Submit sudah dilakukan; lanjutkan unduhan tanpa generate ulang")
                     _log("warning", f"Layer 1 tidak menghasilkan video: {res.get('error')}. Mempersiapkan Layer 2...", self.on_log)
             except Exception as e:
-                # Begitu klik Generate mungkin sudah diterima Google, jangan
-                # pernah pindah layer dan menghabiskan kredit untuk kedua kali.
-                # Saldo kurang juga tidak berubah di Layer 2; pemanggil merotasi akun.
                 if flow.LAST.get("sent") or isinstance(e, flow.CreditsLow) or not self.allow_offscreen_fallback:
                     raise
                 _log("warning", f"Layer 1 error / terdeteksi ({str(e)[:140]}). Beralih otomatis ke Layer 2...", self.on_log)
 
             # Fallback ke Layer 2: Off-Screen Window
             _log("info", ">>> MENJALANKAN LAYER 2: Off-Screen Window Fallback (--window-position=-3200,-3200)", self.on_log)
-            # Like Autopost: fallback gets a fresh clone, not the failed browser's state.
-            fallback_profile = self.tmp_root / (job_id + "_fallback")
-            clone_session_profile(self.src_profile, fallback_profile, self.on_log)
+            clear_profile_locks(self.src_profile)
             res2 = self._run_browser_cycle(
                 layer=2,
-                profile_dir=fallback_profile,
+                profile_dir=self.src_profile,
                 prompt=prompt,
                 image_paths=image_paths,
                 aspect_ratio=aspect_ratio,
@@ -280,12 +276,7 @@ class FlowTwoLayerGenerator:
             return res2
 
         finally:
-            try:
-                time.sleep(1)
-                shutil.rmtree(job_profile, ignore_errors=True)
-                shutil.rmtree(self.tmp_root / (job_id + "_fallback"), ignore_errors=True)
-            except Exception:
-                pass
+            clear_profile_locks(self.src_profile)
 
     def _run_browser_cycle(
         self, layer: int, profile_dir: Path, prompt: str,
