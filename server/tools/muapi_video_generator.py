@@ -22,9 +22,10 @@ class MuAPIVideoGenerator:
     async def generate_video_from_image(
         self,
         prompt: str,
-        image_url: str,
+        image_url: Optional[str] = None,
         duration: int = 10,
         aspect_ratio: str = "9:16",
+        output_path: Optional[str] = None,
     ) -> str:
         """Generate a video clip. Defaults to Google Omni Flash 1.1 vertical (9:16),
         with SnapGen.ai (AdFlx standard) as the secondary / custom engine.
@@ -45,6 +46,7 @@ class MuAPIVideoGenerator:
                 image_url=image_url,
                 duration=duration,
                 aspect_ratio=aspect_ratio or "9:16",
+                output_path=output_path,
             )
         except Exception as e:
             if self.snapgen_key:

@@ -10,6 +10,7 @@ from interfaces.character import CharacterInScene
 from interfaces.shot import ShotDescription
 from tools.muapi_image_generator import MuAPIImageGenerator
 from tools.muapi_video_generator import MuAPIVideoGenerator
+from tools.omni_video_generator import OmniVideoGenerator
 from tools.muapi_uploader import upload_image_from_url
 from tools.storyboard_slicer import StoryboardSlicer
 from tools.autofix_engine import AutoFixEngine
@@ -29,7 +30,15 @@ class Script2VideoPipeline:
         self.api_key = api_key or os.environ.get("MUAPI_KEY", "")
         self.storyboard_artist = StoryboardArtist()
         self.image_gen = MuAPIImageGenerator(api_key=self.api_key)
-        self.video_gen = MuAPIVideoGenerator(api_key=self.api_key)
+
+        video_engine = os.environ.get("VIDEO_ENGINE", "omni").lower().strip()
+        if video_engine in ("omni", "flow", "google_flow", ""):
+            account = os.environ.get("FLOW_ACCOUNT", "auto")
+            profile = os.environ.get("FLOW_PROFILE")
+            self.video_gen = OmniVideoGenerator(account_name=account, profile_path=profile)
+        else:
+            self.video_gen = MuAPIVideoGenerator(api_key=self.api_key)
+
         self.autofix = AutoFixEngine()
 
     async def run(
@@ -339,9 +348,10 @@ class Script2VideoPipeline:
 
         frame_url = shot.first_frame_url
 
+        local_path = str(Path(working_dir) / f"shot_{shot_idx:03d}.mp4")
         try:
             video_url = await self.video_gen.generate_video_from_image(
-                video_prompt, frame_url, duration=10, aspect_ratio="9:16"
+                video_prompt, frame_url, duration=10, aspect_ratio="9:16", output_path=local_path
             )
         except Exception as exc:
             if self.autofix.is_refusal_error(str(exc)):
@@ -349,15 +359,14 @@ class Script2VideoPipeline:
                     video_prompt, reason=str(exc), media_type="video motion"
                 )
                 video_url = await self.video_gen.generate_video_from_image(
-                    repaired_video_prompt, frame_url, duration=10, aspect_ratio="9:16"
+                    repaired_video_prompt, frame_url, duration=10, aspect_ratio="9:16", output_path=local_path
                 )
             else:
                 raise exc
 
-        local_path = str(Path(working_dir) / f"shot_{shot_idx:03d}.mp4")
         if video_url.startswith("http://") or video_url.startswith("https://"):
             await download_video(video_url, local_path)
-        else:
+        elif Path(video_url).resolve() != Path(local_path).resolve():
             shutil.copy(video_url, local_path)
 
         return local_path
