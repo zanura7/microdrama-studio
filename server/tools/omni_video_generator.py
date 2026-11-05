@@ -52,19 +52,25 @@ class OmniVideoGenerator:
     async def generate_video_from_image(
         self,
         prompt: str,
-        image_url: str,
+        image_url: Optional[str] = None,
         duration: int = 10,
         aspect_ratio: str = "9:16",
         output_path: Optional[str] = None,
     ) -> str:
-        """Render a 10s 9:16 video clip using Google Omni Flash 1.1 with character reference."""
+        """Render a 10s 9:16 video clip using Google Omni Flash 1.1 with or without character reference."""
         if not HAS_FLOW_ENGINE:
             raise RuntimeError(
-                "Engine flow-video-generator tidak ditemukan di C:\\Users\\HP\\flow-video-generator"
+                "Engine flow-video-generator tidak ditemukan"
             )
 
-        # 1. Ensure local reference image
-        ref_image_path = await self._resolve_local_image(image_url)
+        # 1. Ensure local reference image if provided
+        ref_image_path = None
+        if image_url:
+            try:
+                ref_image_path = await self._resolve_local_image(image_url)
+            except Exception as e:
+                print(f"[OmniFlash1.1] Warning: Cannot resolve image '{image_url}': {e}. Falling back to prompt-only render.")
+                ref_image_path = None
 
         # 2. Sanitize prompt & enforce Mx-Shell breath-like camera float
         enhanced_prompt = CinematicPromptEngine.sanitize_slop_words(prompt)

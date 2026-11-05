@@ -128,7 +128,7 @@ class Script2VideoPipeline:
             base_progress + int(progress_range * 0.60),
         )
 
-        valid_shots = [s for s in shots if s.first_frame_url]
+        valid_shots = shots
         shot_video_paths = []
 
         for i, shot in enumerate(valid_shots):
@@ -251,10 +251,14 @@ class Script2VideoPipeline:
                 f"Generating frame for shot {i + 1}/{len(shots)} (scene {scene_idx + 1})...",
                 base_progress + int(progress_range * 0.20) + i * frame_progress_step,
             )
-            frame_url = await self._generate_first_frame(
-                shot, characters, character_portrait_urls, style, atmosphere_lock=atmosphere_lock
-            )
-            shot.first_frame_url = frame_url
+            try:
+                frame_url = await self._generate_first_frame(
+                    shot, characters, character_portrait_urls, style, atmosphere_lock=atmosphere_lock
+                )
+                shot.first_frame_url = frame_url
+            except Exception as e:
+                print(f"[FirstFrame] Warning: Failed to generate frame for shot {i + 1} ({e}). Flow will render directly from prompt.")
+                shot.first_frame_url = None
 
     async def _generate_portrait(self, character: CharacterInScene, style: str) -> str:
         """Generate a character portrait image using real lens specs and imperfection retention."""
@@ -323,14 +327,16 @@ class Script2VideoPipeline:
         self, shot: ShotDescription, shot_idx: int, working_dir: str
     ) -> str:
         """Generate a video clip for a shot with breath-like float and sound rules. Returns local file path."""
-        if not shot.first_frame_url:
-            raise ValueError(f"Shot {shot_idx} has no first_frame_url")
-
-        video_prompt = CinematicPromptEngine.build_motion_prompt(
+        motion_part = CinematicPromptEngine.build_motion_prompt(
             motion_desc=shot.motion_desc,
             audio_desc=shot.audio_desc,
             force_breath_float=True,
         )
+        if shot.first_frame_url:
+            video_prompt = motion_part
+        else:
+            video_prompt = f"{shot.visual_desc}. {motion_part}"
+
         frame_url = shot.first_frame_url
 
         try:
