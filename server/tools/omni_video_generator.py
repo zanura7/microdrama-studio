@@ -101,9 +101,10 @@ class OmniVideoGenerator:
         print(f"[OmniFlash1.1] Starting render for prompt: {prompt[:60]}...")
         print(f"[OmniFlash1.1] Using reference image: {ref_image_path}")
 
+        has_cookies = self.profile_path and (self.profile_path / "Default" / "Network" / "Cookies").exists()
         generator = flow_two_layer.FlowTwoLayerGenerator(
             account_name=self.account_name,
-            profile=self.profile_path if self.profile_path.exists() else None,
+            profile=self.profile_path if has_cookies else None,
             allow_offscreen_fallback=True,
             on_log=lambda lvl, msg: print(f"[OmniFlash1.1][{lvl}] {msg}", flush=True),
         )

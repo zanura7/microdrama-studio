@@ -169,30 +169,33 @@ class FlowTwoLayerGenerator:
         return ""
 
     def _resolve_profile(self, name: str) -> Path:
-        p = Path(name)
-        if p.exists() and (p / "Default").exists():
-            return p
+        # If an explicit path with cookies was provided
+        if name and Path(name).exists() and (Path(name) / "Default" / "Network" / "Cookies").exists():
+            return Path(name)
 
-        # 1. First check standalone app profile directory (Cross-platform)
+        # 1. Check standalone cross-platform profile directory if cookies exist
         app_profile = get_flow_profile_dir(name if name and name not in ("default", "auto") else "default")
         if (app_profile / "Default" / "Network" / "Cookies").exists():
             return app_profile
 
-        # 2. Backward compatibility: check legacy .google-flow-creator directory if on dev PC
+        # 2. Backward compatibility: check dev PC accounts in .google-flow-creator
         base = Path.home() / ".google-flow-creator"
-        if not name or name in ("default", "auto"):
-            for cand in ["akun1", "akun2", "akun3", "akun4"]:
+        if base.exists():
+            # If a specific account name was requested
+            if name and name not in ("default", "auto"):
+                spec = base / "accounts" / name / "browser-profile"
+                if spec.exists() and (spec / "Default" / "Network" / "Cookies").exists():
+                    return spec
+
+            # Otherwise find the first available active account
+            for cand in ["akun1", "akun2", "adamzanders", "network", "akun4"]:
                 cand_p = base / "accounts" / cand / "browser-profile"
                 if cand_p.exists() and (cand_p / "Default" / "Network" / "Cookies").exists():
                     return cand_p
-            if (base / "browser-profile" / "Default").exists():
+
+            if (base / "browser-profile" / "Default" / "Network" / "Cookies").exists():
                 return base / "browser-profile"
 
-        legacy_prof = base / "accounts" / name / "browser-profile"
-        if legacy_prof.exists() and (legacy_prof / "Default").exists():
-            return legacy_prof
-
-        # Fallback to standard cross-platform app profile
         return app_profile
 
     def generate(
