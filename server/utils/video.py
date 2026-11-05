@@ -57,7 +57,34 @@ async def concatenate_videos(video_paths: List[str], output_path: str) -> str:
 
 
 def _concat_sync(video_paths: List[str], output_path: str) -> None:
-    """Synchronous moviepy concatenation (runs in thread executor)."""
+    """Concatenate video files. Uses fast native ffmpeg concat first, with moviepy as fallback."""
+    from pathlib import Path
+    import subprocess
+    import shutil
+
+    # Priority 1: Fast & lossless native FFmpeg concat
+    if shutil.which("ffmpeg"):
+        try:
+            out_p = Path(output_path).resolve()
+            out_p.parent.mkdir(parents=True, exist_ok=True)
+            list_file = out_p.parent / f"concat_{out_p.stem}.txt"
+            with open(list_file, "w", encoding="utf-8") as f:
+                for p in video_paths:
+                    f.write(f"file '{Path(p).resolve().as_posix()}'\n")
+
+            cmd = [
+                "ffmpeg", "-y", "-f", "concat", "-safe", "0",
+                "-i", str(list_file),
+                "-c", "copy",
+                str(out_p),
+            ]
+            res = subprocess.run(cmd, capture_output=True, text=True)
+            list_file.unlink(missing_ok=True)
+            if res.returncode == 0 and out_p.exists() and out_p.stat().st_size > 1000:
+                return
+        except Exception:
+            pass
+
     try:
         from moviepy.editor import VideoFileClip, concatenate_videoclips
     except ImportError:
@@ -72,20 +99,23 @@ def _concat_sync(video_paths: List[str], output_path: str) -> None:
         if not clips:
             raise ValueError("No video clips to concatenate")
 
+        fps = clips[0].fps or 24
         if len(clips) == 1:
-            # Just copy
             clips[0].write_videofile(
                 output_path,
                 codec="libx264",
                 audio_codec="aac",
+                fps=fps,
                 logger=None,
             )
         else:
             final = concatenate_videoclips(clips, method="compose")
+            final.fps = fps
             final.write_videofile(
                 output_path,
                 codec="libx264",
                 audio_codec="aac",
+                fps=fps,
                 logger=None,
             )
             final.close()

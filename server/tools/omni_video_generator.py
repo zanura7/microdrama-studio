@@ -36,8 +36,8 @@ class OmniVideoGenerator:
     Zero API cost, leverages authenticated Google Flow session.
     """
 
-    def __init__(self, account_name: str = "auto", profile_path: Optional[str] = None):
-        self.account_name = account_name
+    def __init__(self, account_name: Optional[str] = None, profile_path: Optional[str] = None):
+        self.account_name = account_name or os.environ.get("FLOW_ACCOUNT", "auto")
         if profile_path:
             self.profile_path = Path(profile_path)
         elif os.environ.get("FLOW_PROFILE"):
@@ -45,7 +45,7 @@ class OmniVideoGenerator:
         else:
             try:
                 from engines.flow_engine.paths import get_flow_profile_dir
-                self.profile_path = get_flow_profile_dir(account_name if account_name != "auto" else "default")
+                self.profile_path = get_flow_profile_dir(self.account_name if self.account_name != "auto" else "default")
             except Exception:
                 self.profile_path = Path.home() / ".google-flow-creator" / "browser-profile"
 
